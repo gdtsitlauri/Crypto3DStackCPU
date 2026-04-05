@@ -1,0 +1,34 @@
+# Validation contract for demo.asm
+# Signature checks
+signature.enabled=true
+signature.pre_zero=true
+signature.offset=0
+signature.expected=0x000000AE
+
+# Register checks
+reg.2=0x00000001
+reg.3=0x00000002
+reg.4=0x00000003
+reg.5=0x00000004
+reg.6=0x00000005
+reg.7=0x00000006
+reg.8=0x000000AE
+reg.11=0x00000005
+reg.12=0x00000005
+reg.13=0x00000005
+reg.14=0x00000004
+reg.15=0x00000005
+reg.16=0x00000001
+reg.17=0x00000010
+reg.18=0x00000004
+reg.19=0x00000012
+reg.20=0x12345678
+reg.21=0x00000010
+reg.23=0x00000011
+reg.25=0x00000011
+reg.26=0x00000022
+reg.27=0x00000022
+reg.28=0x00000008
+reg.29=0x0000000A
+reg.30=0x0000000C
+reg.31=0x0000000E

@@ -1,0 +1,13 @@
+# Validation contract for demo_alt.asm
+signature.enabled=true
+signature.pre_zero=true
+signature.offset=0
+signature.expected=0x0000002A
+
+reg.2=0x00000005
+reg.3=0x00000009
+reg.4=0x0000000C
+reg.5=0x00000014
+reg.6=0x00000015
+reg.7=0x00000029
+reg.8=0x0000002A

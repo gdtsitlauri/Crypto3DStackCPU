@@ -1,0 +1,13 @@
+{
+  "name": "3D_hls_component",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "3D_hls_config.cfg"
+    ],
+    "work_dir": "Crypto3DStackCPU_top"
+  },
+  "useSysrootToolchain": false,
+  "template": "empty_hls_component"
+}
