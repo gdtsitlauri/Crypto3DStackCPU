@@ -1,5 +1,10 @@
 # Crypto3DStackCPU
 
+**Author:** George David Tsitlauri  
+**Affiliation:** Dept. of Informatics & Telecommunications, University of Thessaly, Greece  
+**Contact:** gdtsitlauri@gmail.com  
+**Year:** 2026
+
 Comprehensive single-layer secure CPU stack with:
 
 - custom no-MARS assembler flow (`.asm` -> `text.hex` + `data.hex`)
@@ -245,4 +250,16 @@ Do not delete source/config files such as:
 - `3d.cpp`, `3d.h`, `header.h`
 - `asm_to_hex.cpp`, `encryptor.cpp`, `decryptor.cpp`, `3d_test.cpp`
 - `demo.asm`, `demo.contract`, `run_custom_pipeline.ps1`, `run_security_audit.ps1`
+
+## Citation
+
+```bibtex
+@misc{tsitlauri2026crypto3dstackcpu,
+  author = {George David Tsitlauri},
+  title  = {Crypto3DStackCPU: A Single-Layer Secure CPU Stack with AES Instruction Support},
+  year   = {2026},
+  institution = {University of Thessaly},
+  email  = {gdtsitlauri@gmail.com}
+}
+```
 
