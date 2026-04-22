@@ -1,10 +1,5 @@
 # Crypto3DStackCPU
 
-**Author:** George David Tsitlauri  
-**Contact:** gdtsitlauri@gmail.com  
-**Website:** gdtsitlauri.dev  
-**GitHub:** github.com/gdtsitlauri  
-**Year:** 2026
 
 Comprehensive single-layer secure CPU stack with:
 
@@ -18,6 +13,16 @@ Comprehensive single-layer secure CPU stack with:
 - tamper-audit flow with required negative test
 
 This README is the full implementation and operation guide for the current state of the project.
+
+
+## Project Metadata
+
+| Field | Value |
+| --- | --- |
+| Author | George David Tsitlauri |
+| Affiliation | Dept. of Informatics & Telecommunications, University of Thessaly, Greece |
+| Contact | gdtsitlauri@gmail.com |
+| Year | 2026 |
 
 ## Evidence Status
 
@@ -267,15 +272,4 @@ Do not delete source/config files such as:
 - `asm_to_hex.cpp`, `encryptor.cpp`, `decryptor.cpp`, `3d_test.cpp`
 - `demo.asm`, `demo.contract`, `run_custom_pipeline.ps1`, `run_security_audit.ps1`
 
-## Citation
-
-```bibtex
-@misc{tsitlauri2026crypto3dstackcpu,
-  author = {George David Tsitlauri},
-  title  = {Crypto3DStackCPU: A Single-Layer Secure CPU Stack with AES Instruction Support},
-  year   = {2026},
-  institution = {University of Thessaly},
-  email  = {gdtsitlauri@gmail.com}
-}
-```
 

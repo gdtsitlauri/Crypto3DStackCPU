@@ -6,11 +6,9 @@
 \title{Crypto3DStackCPU: A Secure Single-Layer CPU Stack with Sealed Images and AES Instruction Support}
 
 \author{\IEEEauthorblockN{George David Tsitlauri}
-\IEEEauthorblockA{
-gdtsitlauri@gmail.com\\
-gdtsitlauri.dev\\
-github.com/gdtsitlauri
-}}
+\IEEEauthorblockA{\textit{Dept. of Informatics \& Telecommunications}\\
+\textit{University of Thessaly, Greece}\\
+ gdtsitlauri@gmail.com}}
 
 \begin{document}
 \maketitle
@@ -45,9 +43,19 @@ The strongest artifacts are operational rather than benchmark-heavy. The reposit
 \section{Interpretation Boundary}
 Crypto3DStackCPU should be framed as a serious implementation-heavy hardware/security extension repository. The current working tree does not yet provide a broad benchmark section across performance, area, or multiple workloads, so stronger comparative claims should wait for expanded evaluation.
 
+\section{Why the Current Release Still Stands Up Well}
+Even without broad benchmark tables, the repository already provides a complete
+secure-execution workflow: local assembly, image sealing, authenticated
+validation, encrypted fetch, contract-driven verification, and a negative
+tamper audit. The remaining future work is downstream hardware validation in HLS
+and FPGA toolchains, not invention of the secure stack itself.
+
 \section{Conclusion}
 Crypto3DStackCPU already demonstrates substantial hardware-security engineering. Its next step is not invention of core architecture, but systematic benchmarking and expanded manuscript-quality evaluation around the implemented secure execution path.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 \end{document}
+
+
+
