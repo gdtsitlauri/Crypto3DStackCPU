@@ -1,0 +1,53 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+\title{Crypto3DStackCPU: A Secure Single-Layer CPU Stack with Sealed Images and AES Instruction Support}
+
+\author{\IEEEauthorblockN{George David Tsitlauri}
+\IEEEauthorblockA{
+gdtsitlauri@gmail.com\\
+gdtsitlauri.dev\\
+github.com/gdtsitlauri
+}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Crypto3DStackCPU is a hardware/security research repository that implements a secure single-layer CPU stack with image sealing, authenticated headers, encrypted instruction fetch, encrypted-at-rest data handling, custom AES instructions, and contract-based validation. The repository includes a local assembler, end-to-end build and audit scripts, and HLS-oriented integration scaffolding. The strongest current evidence is implementation depth and security-flow completeness rather than broad benchmark coverage.
+\end{abstract}
+
+\section{Introduction}
+Secure processor research often separates architecture, toolchain, and validation. Crypto3DStackCPU studies these concerns together in a compact repository that integrates assembly generation, image sealing, runtime validation, encrypted fetch, and negative tamper testing.
+
+\section{Repository Scope}
+The repository implements:
+\begin{itemize}
+\item a local assembler without MARS dependency,
+\item sealed image construction with wrapped keys and authenticated headers,
+\item encrypted text fetch and protected data handling,
+\item custom AES instructions,
+\item contract-driven execution validation,
+\item a tamper-audit path that requires negative-test failure.
+\end{itemize}
+
+\section{Current Evidence}
+The strongest artifacts are operational rather than benchmark-heavy. The repository includes:
+\begin{itemize}
+\item \texttt{run\_custom\_pipeline.ps1} for end-to-end assembly, encryption, and execution,
+\item \texttt{run\_security\_audit.ps1} for positive and negative validation,
+\item \texttt{3d\_test.cpp} for contract-based functional proof,
+\item \texttt{3D\_hls\_component/} for HLS-facing integration work.
+\end{itemize}
+
+\section{Interpretation Boundary}
+Crypto3DStackCPU should be framed as a serious implementation-heavy hardware/security extension repository. The current working tree does not yet provide a broad benchmark section across performance, area, or multiple workloads, so stronger comparative claims should wait for expanded evaluation.
+
+\section{Conclusion}
+Crypto3DStackCPU already demonstrates substantial hardware-security engineering. Its next step is not invention of core architecture, but systematic benchmarking and expanded manuscript-quality evaluation around the implemented secure execution path.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\end{document}

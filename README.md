@@ -1,8 +1,9 @@
 # Crypto3DStackCPU
 
 **Author:** George David Tsitlauri  
-**Affiliation:** Dept. of Informatics & Telecommunications, University of Thessaly, Greece  
 **Contact:** gdtsitlauri@gmail.com  
+**Website:** gdtsitlauri.dev  
+**GitHub:** github.com/gdtsitlauri  
 **Year:** 2026
 
 Comprehensive single-layer secure CPU stack with:
@@ -17,6 +18,21 @@ Comprehensive single-layer secure CPU stack with:
 - tamper-audit flow with required negative test
 
 This README is the full implementation and operation guide for the current state of the project.
+
+## Evidence Status
+
+| Item | Current status |
+| --- | --- |
+| Secure CPU stack implementation | Present |
+| Contract-based validation flow | Present |
+| Tamper-audit negative test | Present |
+| HLS integration scaffolding | Present |
+| Manuscript-quality writeup | Present in `paper/crypto3dstackcpu_paper.tex` |
+| Broad benchmark suite | Not yet committed |
+
+## Research Positioning
+
+Crypto3DStackCPU is best presented as a hardware/security research extension repo: the implementation is real, the security workflow is concrete, and the next gap is broader benchmarking rather than missing core engineering.
 
 ## 1) What Is Implemented
 
