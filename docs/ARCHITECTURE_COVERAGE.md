@@ -75,6 +75,10 @@ Representative validated benchmarks:
 | `programs/branch_stress.asm` | branch prediction/recovery stress | `0x0000000D` |
 | `programs/aes_stress.asm` | AES ISA instruction stress | `0x0000000A` |
 
+## Target Hardware
+
+The intended FPGA target is the **Xilinx/AMD AC701 Artix-7 Evaluation Kit (EK-A7-AC701-G)** with device `xc7a200tfbg676-2`. The 4-layer 3D-stacked-memory abstraction (4 layers × 1024 × 32-bit = 16 KiB) fits comfortably in the 365 × 18 Kb BRAMs available on `xc7a200t`. Clocking uses the onboard 200 MHz LVDS oscillator (`SYSCLK_P/N`) divided to 100 MHz by a Clocking Wizard, matching the 10 ns HLS clock target.
+
 ## Performance Counter Note
 
 Counters are collected over a fixed 2000-cycle validation window. They are used for architectural visibility and regression comparison. They are not final Vivado timing or FPGA board performance results.

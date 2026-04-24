@@ -1,21 +1,19 @@
-# Ignore build output directory
+# Ignore Vitis HLS build output directories
 /build
 /export
+/Crypto3DStackCPU_top
 
-# Ignore object files and dependent files
-.o
-.d
+# Ignore object, dependency, and log files
+*.o
+*.d
+*.log
+*.lock
+*.bin
+*.pdi
 
-#Ignore logs folder and log files
-/logs
-.log
-
-#Ignore lock files
-.lock
-
-.bin
-.pdi
+# Ignore Vitis workspace transient state
 .vitisWorkspace.json
 
+# Ignore IDE transient logs
 _ide/logs
 _ide/.wsdata

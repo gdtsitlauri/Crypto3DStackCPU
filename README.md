@@ -15,7 +15,7 @@ The repository is organized as a software/HLS-ready research prototype. It does 
 | Affiliation | Department of Informatics & Telecommunications, University of Thessaly, Greece |
 | Year | 2026 |
 | Main language | C++17, PowerShell, MIPS-like assembly, SystemVerilog RTL stubs |
-| Target direction | Vitis HLS / Vivado / Artix-7 validation |
+| Target direction | Vitis HLS / Vivado / Artix-7 AC701 (xc7a200tfbg676-2) validation |
 | Current status | Software/HLS-ready prototype; full regression passed after folder reorganization |
 
 ---
@@ -103,7 +103,6 @@ Crypto3DStackCPU/
 ├── 3D_hls_component/
 │   ├── 3D_hls_config.cfg
 │   └── vitis-comp.json
-├── research_extensions/
 ├── run_all_tests.ps1
 ├── run_pipeline.ps1
 ├── run_security_audit.ps1
@@ -599,6 +598,8 @@ csim.argv=../demo.hex
 
 Generate `demo.hex` before running CSIM. Vitis/Vivado/Artix-7 validation remains the next hardware step.
 
+Target board: **Xilinx/AMD AC701 Artix-7 Evaluation Kit (EK-A7-AC701-G, xc7a200tfbg676-2)**. The AC701 supplies a 200 MHz LVDS reference on `SYSCLK_P/N`, which a Clocking Wizard inside the block design divides down to the 100 MHz CPU core clock consumed by `Crypto3DStackCPU_top`. See `hardware_3d/constraints/fpga_placeholder_constraints.xdc` for the AC701 pin mapping and `3D_hls_component/3D_hls_config.cfg` for the matching HLS target.
+
 ---
 
 ## Relation to Computer Engineering Courses
@@ -658,7 +659,6 @@ paper/
 results/
 hardware_3d/
 3D_hls_component/
-research_extensions/
 README.md
 LICENSE
 .gitignore

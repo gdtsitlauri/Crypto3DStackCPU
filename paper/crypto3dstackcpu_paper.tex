@@ -53,7 +53,7 @@ This paper presents \textbf{Crypto3DStackCPU}, a validated software/HLS-ready re
 \end{abstract}
 
 \begin{IEEEkeywords}
-secure processor, 3D stacked memory, MIPS, AES, authenticated image, HKDF, HMAC, pipeline hazards, forwarding, branch prediction, Vitis HLS, Artix-7, tamper detection.
+secure processor, 3D stacked memory, MIPS, AES, authenticated image, HKDF, HMAC, pipeline hazards, forwarding, branch prediction, Vitis HLS, Artix-7, AC701, tamper detection.
 \end{IEEEkeywords}
 
 % ------------------------------------------------------------
@@ -74,7 +74,7 @@ Crypto3DStackCPU addresses this problem as an implementation-first research prot
     \item A reproducible validation suite covering cryptographic KATs, assembler negative cases, pipeline hazards, benchmark workloads, reseal validation, and extended tamper tests.
 \end{enumerate}
 
-\textbf{Scope.} The current work is a software/HLS-ready prototype. It is prepared for Vitis HLS and Vivado/Artix-7 evaluation, but no FPGA timing closure or physical board measurement is claimed. Side-channel resistance and real fabricated 3D stacked-memory silicon are future work.
+\textbf{Scope.} The current work is a software/HLS-ready prototype. It targets the Xilinx/AMD AC701 Artix-7 Evaluation Kit (EK-A7-AC701-G, device \texttt{xc7a200tfbg676-2}) for Vitis HLS and Vivado evaluation, but no FPGA timing closure or physical board measurement is claimed yet. Side-channel resistance and real fabricated 3D stacked-memory silicon are future work.
 
 % ------------------------------------------------------------
 \section{Relationship to Computer Engineering Curriculum}
@@ -134,7 +134,6 @@ Crypto3DStackCPU/
   paper/               IEEE-style manuscript
   hardware_3d/         RTL/TSV/fabrication-readiness package
   3D_hls_component/    Vitis HLS configuration
-  research_extensions/ optional archived extensions
 \end{lstlisting}
 
 After this reorganization, the full regression suite was rerun and passed, proving that the new paths are functional.
@@ -604,7 +603,7 @@ Future work includes:
 
 \begin{enumerate}
     \item Vitis HLS CSIM and synthesis with the reorganized \texttt{src/} paths.
-    \item Vivado IP integration and Artix-7 board validation.
+    \item Vivado IP integration and validation on the AC701 Artix-7 Evaluation Kit (\texttt{xc7a200tfbg676-2}).
     \item Timing, area, and resource reports.
     \item Side-channel hardening with bitsliced/masked AES and physical leakage measurements.
     \item Fault-injection detection and redundant AES checks.
