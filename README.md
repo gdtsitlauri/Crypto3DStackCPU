@@ -258,13 +258,13 @@ K_{app} \in \{0,1\}^{128}
 The app key encrypts executable text, data, and AES ISA operations. A session key is derived from a hardware-rooted secret, nonce, region descriptors, epoch, and measurement:
 
 ```math
-K_s = \operatorname{HKDF}(H_{root},\; N \parallel M,\; \text{info})
+K_s = \\mathrm{HKDF}(H_{root},\; N \parallel M,\; \text{info})
 ```
 
 The app key is wrapped as:
 
 ```math
-W = \operatorname{AES}_{K_s}(K_{app})
+W = \\mathrm{AES}_{K_s}(K_{app})
 ```
 
 ### Image authentication
@@ -272,11 +272,11 @@ W = \operatorname{AES}_{K_s}(K_{app})
 The sealed image is validated before instruction fetch. A simplified form of the tags is:
 
 ```math
-T_K = \operatorname{HMAC}_{K_s}(\texttt{KEYT} \parallel H_{fixed} \parallel W \parallel M)
+T_K = \\mathrm{HMAC}_{K_s}(\texttt{KEYT} \parallel H_{fixed} \parallel W \parallel M)
 ```
 
 ```math
-T_I = \operatorname{HMAC}_{K_s}(\texttt{IMGT} \parallel H_{fixed} \parallel M \parallel C_{covered})
+T_I = \\mathrm{HMAC}_{K_s}(\texttt{IMGT} \parallel H_{fixed} \parallel M \parallel C_{covered})
 ```
 
 where:
@@ -670,3 +670,4 @@ run_*.ps1
 ## Final Status
 
 Crypto3DStackCPU is complete at the software/research/HLS-ready prototype level. The next step is Vitis/Vivado synthesis and Artix-7 hardware validation.
+
