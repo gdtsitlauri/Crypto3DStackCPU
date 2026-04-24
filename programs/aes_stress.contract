@@ -1,0 +1,12 @@
+# Validation contract for aes_stress.asm
+signature.enabled=true
+signature.pre_zero=true
+signature.offset=0
+signature.expected=0x0000000A
+
+registers.enabled=false
+reg.2=0x00000005
+reg.3=0x00000009
+reg.5=0x00000005
+reg.7=0x00000005
+reg.8=0x0000000A

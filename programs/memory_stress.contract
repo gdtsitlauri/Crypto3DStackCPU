@@ -1,0 +1,15 @@
+# Validation contract for memory_stress.asm
+signature.enabled=true
+signature.pre_zero=true
+signature.offset=0
+signature.expected=0x0000000A
+
+registers.enabled=false
+reg.3=0x00000001
+reg.4=0x00000002
+reg.5=0x00000003
+reg.6=0x00000004
+reg.7=0x00000003
+reg.8=0x00000007
+reg.9=0x0000000A
+reg.10=0x0000000A

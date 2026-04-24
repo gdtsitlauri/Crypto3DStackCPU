@@ -4,12 +4,13 @@
 
 
 #include <cstdint>
-#include <cstring>   // strnlen, strncat
-#include <iostream>
-#include <cstddef>   // for SIZE_MAX
-#include <cstdio>    // for snprintf
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstring>
+#include <cstddef>
+
+#if !defined(__SYNTHESIS__)
+#include <cstdio>
+#endif
+
 #include "3d.h"
 #include "header.h"
 
@@ -19,6 +20,14 @@
 
 #ifndef TRACE_POST_TEXT_DUMP
 #define TRACE_POST_TEXT_DUMP 0
+#endif
+
+#ifndef CRYPTO3D_ENABLE_OUTPUT_RESEAL
+#define CRYPTO3D_ENABLE_OUTPUT_RESEAL 1
+#endif
+
+#ifndef CRYPTO3D_STRICT_TEXT_WRITE_PROTECT
+#define CRYPTO3D_STRICT_TEXT_WRITE_PROTECT 1
 #endif
 
 
@@ -51,12 +60,12 @@ extern "C" void aes_decrypt_block(uint32_t*, uint32_t*, uint32_t*);
 // ------------------------------------------------------------------------
 // HLS-compatible static sizes
 // ------------------------------------------------------------------------
-#define MAX_LAYERS   1
+#define MAX_LAYERS   4
 #define MAX_WORDS    1024
 #define MAX_LOG_LEN 128
 
 
-StackedMemory3D stackedMemory(1, MEM_SIZE); // Single layer, 1024 words
+StackedMemory3D stackedMemory(MAX_LAYERS, MEM_SIZE); // 4-layer 3D stack, 1024 words/layer
 
 // ------------------------------------------------------------------------
 // Instruction Opcodes
@@ -120,11 +129,14 @@ static uint32_t instr_layer = 0;
 static uint32_t data_layer  = 0;
 
 extern "C" void CPU_set_layers(uint32_t il, uint32_t dl) {
-    (void)il;
-    (void)dl;
-    // Single-layer mode: always use layer 0.
-    instr_layer = 0;
-    data_layer  = 0;
+    if (il < stackedMemory.getNumLayers() && dl < stackedMemory.getNumLayers()) {
+        instr_layer = il;
+        data_layer  = dl;
+    } else {
+        instr_layer = 0;
+        data_layer  = 0;
+        stackedMemory.lockSecurity("BAD LAYER SELECT");
+    }
     invalidateCaches();
 }
 
@@ -151,6 +163,20 @@ int secret_map[128] = {
     41, 85, 451, 249, 587, 956, 79, 480,
     743, 198, 500, 447, 996, 908, 351, 380
 };
+
+// ------------------------------------------------------------------------
+// Architectural performance counters (software-visible after top returns)
+// ------------------------------------------------------------------------
+static uint32_t perf_cycle_count = 0;
+static uint32_t perf_icache_hits = 0;
+static uint32_t perf_icache_misses = 0;
+static uint32_t perf_dcache_hits = 0;
+static uint32_t perf_dcache_misses = 0;
+static uint32_t perf_forward_mem = 0;
+static uint32_t perf_forward_wb = 0;
+static uint32_t perf_load_use_stalls = 0;
+static uint32_t perf_store_data_forwards = 0;
+static uint32_t perf_aes_instructions = 0;
 
 // ------------------------------------------------------------------------
 // I-cache (instruction cache)
@@ -195,9 +221,12 @@ static void icache_read_block(uint32_t block_addr, uint32_t out_block[INSTRS_PER
     uint32_t index, tag;
     icache_get_index_tag(block_addr, index, tag);
     if (!iCache_valid[index] || iCache_tag[index] != tag) {
+        perf_icache_misses++;
         icache_fetch_block_from_mem(block_addr, iCache_data[index]);
         iCache_tag[index]   = tag;
         iCache_valid[index] = true;
+    } else {
+        perf_icache_hits++;
     }
     for (int i = 0; i < INSTRS_PER_BLOCK; i++) {
         out_block[i] = iCache_data[index][i];
@@ -230,9 +259,12 @@ static uint32_t dcache_read(uint32_t addr) {
     uint32_t index, tag;
     dcache_get_index_tag(addr, index, tag);
     if (!dcache_valid[index] || dcache_tag[index] != tag) {
+        perf_dcache_misses++;
         dcache_data[index]  = stackedMemory.protectedRead(data_layer, addr);
         dcache_tag[index]   = tag;
         dcache_valid[index] = true;
+    } else {
+        perf_dcache_hits++;
     }
     return dcache_data[index];
 }
@@ -980,6 +1012,85 @@ static void secure_compute_img_tag(uint32_t layer,
     secure_zero_bytes(digest, 32u);
 }
 
+static bool secure_equal_words(const uint32_t *a, const uint32_t *b, int n);
+
+static int secure_reseal_current_image(uint32_t layer) {
+    const uint32_t active_layer = 0u;
+    (void)layer;
+
+    SecureHeaderState hdr;
+    if (!secure_decode_header(active_layer, hdr)) {
+        stackedMemory.lockSecurity("RESEAL HEADER");
+        return -1;
+    }
+
+    if ((hdr.policy & SEC_POLICY_RESEAL_READY) == 0u) {
+        return 0;
+    }
+
+    uint32_t positions[128];
+    if (!secure_generate_positions(hdr.nonce,
+                                   hdr.text_start,
+                                   hdr.text_end,
+                                   (uint32_t)stackedMemory.getNumWords(),
+                                   positions)) {
+        stackedMemory.lockSecurity("RESEAL MAP");
+        return -2;
+    }
+
+    uint32_t wrapped_hidden[4] = {0u, 0u, 0u, 0u};
+    secure_extract_hidden_wrapped(active_layer, positions, wrapped_hidden);
+    if (!secure_equal_words(wrapped_hidden, hdr.wrapped, 4)) {
+        secure_zero_words(wrapped_hidden, 4);
+        stackedMemory.lockSecurity("RESEAL WRAP");
+        return -3;
+    }
+
+    uint32_t session_key[4]      = {0u, 0u, 0u, 0u};
+    uint32_t measured_now[4]     = {0u, 0u, 0u, 0u};
+    uint32_t expected_key_tag[4] = {0u, 0u, 0u, 0u};
+    uint32_t new_img_tag[4]     = {0u, 0u, 0u, 0u};
+
+    secure_derive_session_key(active_layer, hdr, session_key, measured_now);
+
+    if (!secure_equal_words(measured_now, hdr.measurements, 4)) {
+        secure_zero_words(session_key, 4);
+        secure_zero_words(measured_now, 4);
+        secure_zero_words(wrapped_hidden, 4);
+        stackedMemory.lockSecurity("RESEAL MEAS");
+        return -4;
+    }
+
+    secure_compute_key_tag(hdr, wrapped_hidden, session_key, measured_now, expected_key_tag);
+    if (!secure_equal_words(expected_key_tag, hdr.key_tag, 4)) {
+        secure_zero_words(session_key, 4);
+        secure_zero_words(measured_now, 4);
+        secure_zero_words(expected_key_tag, 4);
+        secure_zero_words(wrapped_hidden, 4);
+        stackedMemory.lockSecurity("RESEAL KEYTAG");
+        return -5;
+    }
+
+    // Recompute the image authentication tag over the current encrypted text
+    // and the current encrypted data region. This makes the post-execution
+    // output image reloadable and authenticatable after runtime stores.
+    secure_compute_img_tag(active_layer, hdr, session_key, measured_now, new_img_tag);
+
+    for (int i = 0; i < 4; ++i) {
+        hdr.img_tag[i] = new_img_tag[i];
+        stackedMemory.protectedWrite(active_layer, SEC_HDR_W_IMGTAG0 + (uint32_t)i, new_img_tag[i]);
+    }
+
+    secure_apply_runtime_region(hdr);
+
+    secure_zero_words(session_key, 4);
+    secure_zero_words(measured_now, 4);
+    secure_zero_words(expected_key_tag, 4);
+    secure_zero_words(new_img_tag, 4);
+    secure_zero_words(wrapped_hidden, 4);
+    return 0;
+}
+
 static bool secure_equal_words(const uint32_t *a, const uint32_t *b, int n) {
     uint32_t diff = 0u;
     for (int i = 0; i < n; ++i) {
@@ -1108,8 +1219,11 @@ extern "C" int secure_get_data_region(uint32_t *data_start_addr,
 }
 
 extern "C" int secure_validate_image(uint32_t layer) {
-    (void)layer;
-    const uint32_t active_layer = 0;
+    if (layer >= stackedMemory.getNumLayers()) {
+        stackedMemory.lockSecurity("BAD VALIDATE LAYER");
+        return -100;
+    }
+    const uint32_t active_layer = layer;
 
     SecureHeaderState hdr;
     if (!secure_decode_header(active_layer, hdr)) {
@@ -1236,8 +1350,12 @@ extern "C" int secure_read_data_word_plain(uint32_t word_addr, uint32_t *plain_v
 }
 
 extern "C" int extract_key_from_large_block(uint32_t layer, uint32_t key[4]) {
-    (void)layer;
-    const uint32_t active_layer = 0;
+    if (layer >= stackedMemory.getNumLayers()) {
+        for (int i = 0; i < 4; ++i) key[i] = 0;
+        stackedMemory.lockSecurity("BAD EXTRACT LAYER");
+        return -100;
+    }
+    const uint32_t active_layer = layer;
 
     for (int i = 0; i < 4; ++i) key[i] = 0;
 
@@ -1263,8 +1381,11 @@ extern "C" int extract_key_from_large_block(uint32_t layer, uint32_t key[4]) {
 }
 
 extern "C" int create_large_block_with_key(uint32_t layer, uint32_t key[4]) {
-    (void)layer;
-    const uint32_t active_layer = 0;
+    if (layer >= stackedMemory.getNumLayers()) {
+        stackedMemory.lockSecurity("BAD CREATE LAYER");
+        return -100;
+    }
+    const uint32_t active_layer = layer;
     const uint32_t words = (uint32_t)stackedMemory.getNumWords();
 
     SecureHeaderState hdr;
@@ -1590,8 +1711,29 @@ extern "C" void aes_decrypt_block(uint32_t input[4], uint32_t key[4], uint32_t o
 
 struct FetchReg  { bool valid; uint32_t block_addr; uint32_t block_data[4]; };
 struct DecryptReg{ bool valid; uint32_t block_addr; uint32_t decr_block[4]; int instr_index; };
-struct DecodeReg { bool valid; uint32_t instr, word_addr, rs_val, rt_val; uint8_t a_sel, b_sel; };
-struct ExecReg   { bool valid; uint32_t alu_result, instr; bool taken_branch; uint32_t new_block_addr; };
+struct DecodeReg {
+    bool valid;
+    uint32_t instr, word_addr, rs_val, rt_val;
+    uint32_t rs_idx, rt_idx;
+    uint8_t a_sel, b_sel;
+    bool predicted_taken;
+    uint32_t predicted_block_addr;
+    uint32_t fallthrough_block_addr;
+    bool is_control;
+};
+struct ExecReg {
+    bool valid;
+    uint32_t alu_result, instr;
+    uint32_t rt_forward_val;
+    bool taken_branch;
+    uint32_t new_block_addr;
+    bool predicted_taken;
+    uint32_t predicted_block_addr;
+    uint32_t fallthrough_block_addr;
+    bool is_control;
+    bool control_mispredict;
+    uint32_t recovery_block_addr;
+};
 struct MemReg    { bool valid; uint32_t alu_result, instr, mem_read_val; };
 struct WbReg     { bool valid; uint32_t final_val, instr; };
 
@@ -1609,6 +1751,10 @@ static inline void invalidateFrontendOnTextWrite(uint32_t word_addr) {
 static ExecReg    exec_reg;
 static MemReg     mem_reg;
 static WbReg      wb_reg;
+
+static uint32_t pipeline_stall_count = 0;
+static uint32_t branch_prediction_count = 0;
+static uint32_t branch_mispredict_count = 0;
 
 static constexpr uint32_t MIPS_OP_SPECIAL = 0x00u;
 static constexpr uint32_t MIPS_OP_J       = 0x02u;
@@ -1691,6 +1837,41 @@ static uint32_t getDestReg(uint32_t instr) {
     return 0u;
 }
 
+static bool isLoadInstruction(uint32_t instr) {
+#pragma HLS INLINE
+    return mips_opcode(instr) == MIPS_OP_LW;
+}
+
+static bool isControlInstruction(uint32_t instr) {
+#pragma HLS INLINE
+    uint32_t op = mips_opcode(instr);
+    return (op == MIPS_OP_BEQ || op == MIPS_OP_BNE || op == MIPS_OP_J);
+}
+
+static uint32_t computeJumpTargetBlock(uint32_t instr) {
+#pragma HLS INLINE
+    uint32_t target_word = mips_target(instr);
+    if (target_word >= kMarsTextBaseWord) {
+        target_word = kTextStartAddr + (target_word - kMarsTextBaseWord);
+    }
+    return target_word / INSTRS_PER_BLOCK;
+}
+
+static uint32_t computeBranchTargetBlock(uint32_t word_addr, int32_t simm) {
+#pragma HLS INLINE
+    int32_t next_word = (int32_t)word_addr + 1 + simm;
+    if (next_word < 0) next_word = 0;
+    return ((uint32_t)next_word) / INSTRS_PER_BLOCK;
+}
+
+static bool branchPredictTaken(uint32_t instr) {
+#pragma HLS INLINE
+    uint32_t op = mips_opcode(instr);
+    // Basic, deterministic predictor: unconditional jumps are predicted taken;
+    // conditional branches use static predict-not-taken and are recovered by flush.
+    return op == MIPS_OP_J;
+}
+
 static void getSourceRegs(uint32_t instr, uint32_t &rs, uint32_t &rt) {
 #pragma HLS INLINE
     rs = 0u;
@@ -1751,17 +1932,31 @@ static bool checkDataHazard(uint32_t decode_instr,
     uint32_t d_rs, d_rt;
     getSourceRegs(decode_instr, d_rs, d_rt);
     a_sel = b_sel = 0;
+    bool must_stall = false;
+
+    // EX-stage producer: ALU results can be forwarded, but a load's data is
+    // not available until the MEM stage. That exact load-use case inserts a
+    // one-cycle decode stall.
     if (exec_reg.valid && isWriteInstruction(exec_instr)) {
         uint32_t exd = getDestReg(exec_instr);
-        if (exd && d_rs == exd) a_sel = 1;
-        if (exd && d_rt == exd) b_sel = 1;
+        if (exd && (d_rs == exd || d_rt == exd)) {
+            if (isLoadInstruction(exec_instr)) {
+                must_stall = true;
+            } else {
+                if (d_rs == exd) a_sel = 1;
+                if (d_rt == exd) b_sel = 1;
+            }
+        }
     }
+
+    // MEM/WB-stage producer: final ALU or load value can be forwarded.
     if (mem_reg.valid && isWriteInstruction(mem_instr)) {
         uint32_t md = getDestReg(mem_instr);
         if (md && !a_sel && d_rs == md) a_sel = 2;
         if (md && !b_sel && d_rt == md) b_sel = 2;
     }
-    return (a_sel || b_sel);
+
+    return must_stall;
 }
 
 static void stage_fetch() {
@@ -1847,19 +2042,52 @@ static void stage_decode(bool stall) {
     if (!stall && decr_reg.valid && !decode_reg.valid) {
         uint32_t curr_idx = (uint32_t)decr_reg.instr_index;
         uint32_t instr = decr_reg.decr_block[curr_idx];
+        uint32_t word_addr = decr_reg.block_addr * INSTRS_PER_BLOCK + curr_idx;
         uint32_t rs, rt; getSourceRegs(instr, rs, rt);
         uint8_t a_sel, b_sel;
         checkDataHazard(instr, exec_reg.instr, mem_reg.instr, a_sel, b_sel);
+
+        uint32_t opcode = mips_opcode(instr);
+        int32_t simm = mips_simm(instr);
+        bool is_ctrl = isControlInstruction(instr);
+        bool pred_taken = branchPredictTaken(instr);
+        uint32_t pred_block = (word_addr + 1u) / INSTRS_PER_BLOCK;
+        if (opcode == MIPS_OP_J) {
+            pred_block = computeJumpTargetBlock(instr);
+        } else if (opcode == MIPS_OP_BEQ || opcode == MIPS_OP_BNE) {
+            uint32_t target_block = computeBranchTargetBlock(word_addr, simm);
+            pred_block = pred_taken ? target_block : ((word_addr + 1u) / INSTRS_PER_BLOCK);
+        }
+
         decode_reg.valid  = true;
         decode_reg.instr  = instr;
-        decode_reg.word_addr = decr_reg.block_addr * INSTRS_PER_BLOCK + curr_idx;
+        decode_reg.word_addr = word_addr;
         decode_reg.rs_val = reg_file[rs];
         decode_reg.rt_val = reg_file[rt];
+        decode_reg.rs_idx = rs;
+        decode_reg.rt_idx = rt;
         decode_reg.a_sel  = a_sel;
         decode_reg.b_sel  = b_sel;
+        decode_reg.is_control = is_ctrl;
+        decode_reg.predicted_taken = pred_taken;
+        decode_reg.predicted_block_addr = pred_block;
+        decode_reg.fallthrough_block_addr = (word_addr + 1u) / INSTRS_PER_BLOCK;
+
+        if (is_ctrl) {
+            branch_prediction_count++;
+        }
+
         decr_reg.instr_index++;
         if (decr_reg.instr_index >= INSTRS_PER_BLOCK) {
             decr_reg.valid = false;
+        }
+
+        // Basic branch prediction: unconditional jumps redirect at decode.
+        // Conditional branches intentionally use static predict-not-taken.
+        if (pred_taken) {
+            fetch_reg.valid = false;
+            decr_reg.valid = false;
+            fetch_reg.block_addr = pred_block;
         }
     }
 }
@@ -1870,12 +2098,29 @@ static void stage_execute() {
         uint32_t instr = decode_reg.instr;
         uint32_t opcode = mips_opcode(instr);
         uint32_t funct  = mips_funct(instr);
-        uint32_t rs_val = (decode_reg.a_sel == 1) ? exec_reg.alu_result
-                        : (decode_reg.a_sel == 2) ? mem_reg.mem_read_val
-                        : decode_reg.rs_val;
-        uint32_t rt_val = (decode_reg.b_sel == 1) ? exec_reg.alu_result
-                        : (decode_reg.b_sel == 2) ? mem_reg.mem_read_val
-                        : decode_reg.rt_val;
+        uint32_t rs_val = decode_reg.rs_val;
+        uint32_t rt_val = decode_reg.rt_val;
+
+        // Dynamic execute-time forwarding. The scheduler calls stage_memory()
+        // before stage_execute(), so the immediately preceding producer is
+        // visible in mem_reg, while the producer two cycles back is visible in
+        // wb_reg. This avoids stale selector timing and supports ALU, load, and
+        // store-data dependencies.
+        bool rs_forwarded = false;
+        bool rt_forwarded = false;
+        if (mem_reg.valid && isWriteInstruction(mem_reg.instr)) {
+            uint32_t md = getDestReg(mem_reg.instr);
+            if (md && decode_reg.rs_idx == md) { rs_val = mem_reg.mem_read_val; rs_forwarded = true; perf_forward_mem++; }
+            if (md && decode_reg.rt_idx == md) { rt_val = mem_reg.mem_read_val; rt_forwarded = true; perf_forward_mem++; }
+        }
+        if (wb_reg.valid && isWriteInstruction(wb_reg.instr)) {
+            uint32_t wd = getDestReg(wb_reg.instr);
+            if (wd && !rs_forwarded && decode_reg.rs_idx == wd) { rs_val = wb_reg.final_val; perf_forward_wb++; }
+            if (wd && !rt_forwarded && decode_reg.rt_idx == wd) { rt_val = wb_reg.final_val; perf_forward_wb++; }
+        }
+        if (opcode == MIPS_OP_SW && rt_forwarded) {
+            perf_store_data_forwards++;
+        }
         uint32_t alu_res = 0;
         bool     br      = false;
         uint32_t nb      = 0;
@@ -1894,6 +2139,7 @@ static void stage_execute() {
                     case MIPS_FUNCT_SRL:  alu_res = rt_val >> (mips_shamt(instr) & 0x1Fu); break;
                     case MIPS_FUNCT_MULT: alu_res = rs_val * rt_val; break;
                     case MIPS_FUNCT_AESENC: {
+                        perf_aes_instructions++;
                         uint32_t in[4] = {
                             rs_val,
                             rt_val,
@@ -1907,6 +2153,7 @@ static void stage_execute() {
                         break;
                     }
                     case MIPS_FUNCT_AESDEC: {
+                        perf_aes_instructions++;
                         uint32_t out[4];
                         aes_decrypt_block(copro_reg, runtime_app_key, out);
                         alu_res = out[0];
@@ -1928,37 +2175,44 @@ static void stage_execute() {
                 break;
             case MIPS_OP_BEQ:
                 if (rs_val == rt_val) {
-                    int32_t next_word = (int32_t)decode_reg.word_addr + 1 + simm;
-                    if (next_word < 0) next_word = 0;
                     br = true;
-                    nb = ((uint32_t)next_word) / INSTRS_PER_BLOCK;
+                    nb = computeBranchTargetBlock(decode_reg.word_addr, simm);
                 }
                 break;
             case MIPS_OP_BNE:
                 if (rs_val != rt_val) {
-                    int32_t next_word = (int32_t)decode_reg.word_addr + 1 + simm;
-                    if (next_word < 0) next_word = 0;
                     br = true;
-                    nb = ((uint32_t)next_word) / INSTRS_PER_BLOCK;
+                    nb = computeBranchTargetBlock(decode_reg.word_addr, simm);
                 }
                 break;
-            case MIPS_OP_J: {
-                    uint32_t target_word = mips_target(instr);
-                    if (target_word >= kMarsTextBaseWord) {
-                        target_word = kTextStartAddr + (target_word - kMarsTextBaseWord);
-                    }
-                    br = true;
-                    nb = target_word / INSTRS_PER_BLOCK;
-                    break;
-                }
+            case MIPS_OP_J:
+                br = true;
+                nb = computeJumpTargetBlock(instr);
+                break;
             default:
                 break;
         }
+        uint32_t actual_block = br ? nb : decode_reg.fallthrough_block_addr;
+        uint32_t predicted_block = decode_reg.predicted_taken
+            ? decode_reg.predicted_block_addr
+            : decode_reg.fallthrough_block_addr;
+        bool mispredict = decode_reg.is_control && (actual_block != predicted_block);
+        if (mispredict) {
+            branch_mispredict_count++;
+        }
+
         exec_reg.valid         = true;
         exec_reg.alu_result    = alu_res;
         exec_reg.instr         = decode_reg.instr;
+        exec_reg.rt_forward_val= rt_val;
         exec_reg.taken_branch  = br;
         exec_reg.new_block_addr= nb;
+        exec_reg.predicted_taken = decode_reg.predicted_taken;
+        exec_reg.predicted_block_addr = decode_reg.predicted_block_addr;
+        exec_reg.fallthrough_block_addr = decode_reg.fallthrough_block_addr;
+        exec_reg.is_control    = decode_reg.is_control;
+        exec_reg.control_mispredict = mispredict;
+        exec_reg.recovery_block_addr = actual_block;
         decode_reg.valid       = false;
     }
 }
@@ -2002,27 +2256,58 @@ static bool secure_is_encrypted_data_word(uint32_t word_addr) {
     return (word_addr >= start && word_addr < end);
 }
 
+static bool secure_is_data_word(uint32_t word_addr) {
+    uint32_t start = secure_runtime_region_valid ? secure_runtime_data_start_addr : secure_data_start_addr;
+    uint32_t end   = secure_runtime_region_valid ? secure_runtime_data_enc_end   : secure_data_enc_end;
+
+    if (start >= end) return false;
+    return (word_addr >= start && word_addr < end);
+}
+
+static bool secure_is_text_word(uint32_t word_addr) {
+    uint32_t start = secure_runtime_region_valid ? secure_runtime_text_start_addr : secure_text_start_addr;
+    uint32_t end   = secure_runtime_region_valid ? secure_runtime_text_enc_end    : secure_text_enc_end;
+
+    if (start >= end) return false;
+    return (word_addr >= start && word_addr < end);
+}
+
 static uint32_t secure_read_encrypted_data_word(uint32_t word_addr) {
     uint32_t base = (word_addr / INSTRS_PER_BLOCK) * INSTRS_PER_BLOCK;
-    uint32_t cipher[INSTRS_PER_BLOCK];
-    uint32_t plain[INSTRS_PER_BLOCK];
+    uint32_t cipher[INSTRS_PER_BLOCK] = {0u, 0u, 0u, 0u};
+    uint32_t plain[INSTRS_PER_BLOCK]  = {0u, 0u, 0u, 0u};
+    uint32_t result = 0u;
+
+    if ((base + INSTRS_PER_BLOCK) > (uint32_t)stackedMemory.getNumWords()) {
+        return 0u;
+    }
 
     for (int i = 0; i < INSTRS_PER_BLOCK; ++i) {
         cipher[i] = stackedMemory.rawRead(data_layer, base + (uint32_t)i);
     }
+
     aes_decrypt_block(cipher, runtime_app_key, plain);
-    return plain[word_addr % INSTRS_PER_BLOCK];
+    result = plain[word_addr % INSTRS_PER_BLOCK];
+
+    secure_zero_words(cipher, INSTRS_PER_BLOCK);
+    secure_zero_words(plain, INSTRS_PER_BLOCK);
+    return result;
 }
 
 static void secure_write_encrypted_data_word(uint32_t word_addr, uint32_t value) {
     uint32_t base = (word_addr / INSTRS_PER_BLOCK) * INSTRS_PER_BLOCK;
-    uint32_t cipher[INSTRS_PER_BLOCK];
-    uint32_t plain[INSTRS_PER_BLOCK];
-    uint32_t recipher[INSTRS_PER_BLOCK];
+    uint32_t cipher[INSTRS_PER_BLOCK]   = {0u, 0u, 0u, 0u};
+    uint32_t plain[INSTRS_PER_BLOCK]    = {0u, 0u, 0u, 0u};
+    uint32_t recipher[INSTRS_PER_BLOCK] = {0u, 0u, 0u, 0u};
+
+    if ((base + INSTRS_PER_BLOCK) > (uint32_t)stackedMemory.getNumWords()) {
+        return;
+    }
 
     for (int i = 0; i < INSTRS_PER_BLOCK; ++i) {
         cipher[i] = stackedMemory.rawRead(data_layer, base + (uint32_t)i);
     }
+
     aes_decrypt_block(cipher, runtime_app_key, plain);
     plain[word_addr % INSTRS_PER_BLOCK] = value;
     aes_encrypt_block(plain, runtime_app_key, recipher);
@@ -2037,19 +2322,27 @@ static void secure_write_encrypted_data_word(uint32_t word_addr, uint32_t value)
             dcache_valid[index] = false;
         }
     }
+
+    secure_zero_words(cipher, INSTRS_PER_BLOCK);
+    secure_zero_words(plain, INSTRS_PER_BLOCK);
+    secure_zero_words(recipher, INSTRS_PER_BLOCK);
 }
 
 static void stage_memory() {
 #pragma HLS INLINE off
     if (exec_reg.valid && !mem_reg.valid) {
         uint32_t opcode = mips_opcode(exec_reg.instr);
-        uint32_t rt     = mips_rt(exec_reg.instr);
         uint32_t val    = 0;
         uint32_t addr   = exec_reg.alu_result;
         uint32_t word_addr = 0;
         switch(opcode) {
             case MIPS_OP_LW:
                 if (translateDataAddress(addr, word_addr)) {
+                    if (!secure_is_data_word(word_addr)) {
+                        stackedMemory.lockSecurity("DATA READ");
+                        val = 0u;
+                        break;
+                    }
                     if (secure_is_encrypted_data_word(word_addr)) {
                         val = secure_read_encrypted_data_word(word_addr);
                     } else {
@@ -2059,10 +2352,18 @@ static void stage_memory() {
                 break;
             case MIPS_OP_SW:
                 if (translateDataAddress(addr, word_addr)) {
+#if CRYPTO3D_STRICT_TEXT_WRITE_PROTECT
+                    if (word_addr < SEC_HDR_WORDS || secure_is_text_word(word_addr) || !secure_is_data_word(word_addr)) {
+                        stackedMemory.lockSecurity("DATA WRITE");
+                        break;
+                    }
+#endif
+                    uint32_t store_value = exec_reg.rt_forward_val;
                     if (secure_is_encrypted_data_word(word_addr)) {
-                        secure_write_encrypted_data_word(word_addr, reg_file[rt]);
+                        secure_write_encrypted_data_word(word_addr, store_value);
                     } else {
-                        dcache_write(word_addr, reg_file[rt]);
+                        dcache_write(word_addr, store_value);
+                        invalidateFrontendOnTextWrite(word_addr);
                     }
                 }
                 break;
@@ -2117,6 +2418,26 @@ static void stage_writeback() {
     }
 }
 
+extern "C" uint32_t Crypto3DStackCPU_get_perf_counter(uint32_t counter_id) {
+    switch (counter_id) {
+        case CRYPTO3D_PERF_CYCLES:              return perf_cycle_count;
+        case CRYPTO3D_PERF_RETIRED:             return retired_instructions;
+        case CRYPTO3D_PERF_STALLS:              return pipeline_stall_count;
+        case CRYPTO3D_PERF_LOAD_USE_STALLS:     return perf_load_use_stalls;
+        case CRYPTO3D_PERF_BRANCH_PREDICTIONS:  return branch_prediction_count;
+        case CRYPTO3D_PERF_BRANCH_MISPREDICTS:  return branch_mispredict_count;
+        case CRYPTO3D_PERF_ICACHE_HITS:         return perf_icache_hits;
+        case CRYPTO3D_PERF_ICACHE_MISSES:       return perf_icache_misses;
+        case CRYPTO3D_PERF_DCACHE_HITS:         return perf_dcache_hits;
+        case CRYPTO3D_PERF_DCACHE_MISSES:       return perf_dcache_misses;
+        case CRYPTO3D_PERF_FORWARD_MEM:         return perf_forward_mem;
+        case CRYPTO3D_PERF_FORWARD_WB:          return perf_forward_wb;
+        case CRYPTO3D_PERF_STORE_DATA_FORWARDS: return perf_store_data_forwards;
+        case CRYPTO3D_PERF_AES_INSTRUCTIONS:    return perf_aes_instructions;
+        default:                                return 0u;
+    }
+}
+
 // ------------------------------------------------------------------------
 // Top Function for HLS
 // ------------------------------------------------------------------------
@@ -2167,28 +2488,41 @@ extern "C" void Crypto3DStackCPU_top(volatile uint32_t* image,
     const uint32_t start_block = kTextStartBlock;
     const uint32_t num_cycles  = 2000;
 
-    static bool init_done = false;
     retired_instructions = 0;
-    if (!init_done) {
-        // Initialize registers and caches; memory left untouched
-        for (int r = 0; r < NUM_REGS; r++) {
-            reg_file[r] = 0;
-        }
-        for (int i = 0; i < ICACHE_LINES; i++) {
-            iCache_valid[i] = false;
-            iCache_tag[i]   = 0;
-        }
-        for (int i = 0; i < DCACHE_LINES; i++) {
-            dcache_valid[i] = false;
-            dcache_tag[i]   = 0;
-        }
-    // Enable secure processing for single layer (layer 0)
-    stackedMemory.enableProcessingLayer(0);
-    // Secure key/header are expected to be pre-sealed by encryptor.
-        init_done = true;
+    pipeline_stall_count = 0;
+    branch_prediction_count = 0;
+    branch_mispredict_count = 0;
+    perf_cycle_count = 0;
+    perf_icache_hits = 0;
+    perf_icache_misses = 0;
+    perf_dcache_hits = 0;
+    perf_dcache_misses = 0;
+    perf_forward_mem = 0;
+    perf_forward_wb = 0;
+    perf_load_use_stalls = 0;
+    perf_store_data_forwards = 0;
+    perf_aes_instructions = 0;
+    // Per-invocation architectural reset. This is essential for repeatable
+    // execution: if the top function is called twice (e.g. during HLS CSIM
+    // or back-to-back test runs), register file and caches MUST be zeroed
+    // so the new image starts from a known-good state.
+    for (int r = 0; r < NUM_REGS; r++) {
+        reg_file[r] = 0;
     }
+    for (int i = 0; i < ICACHE_LINES; i++) {
+        iCache_valid[i] = false;
+        iCache_tag[i]   = 0;
+    }
+    for (int i = 0; i < DCACHE_LINES; i++) {
+        dcache_valid[i] = false;
+        dcache_tag[i]   = 0;
+    }
+    // Enable secure processing for the validated boot layer (layer 0).
+    // The memory model is a 4-layer 3D stack; the default sealed image boots
+    // from layer 0 while CPU_set_layers() can select other valid layers.
+    stackedMemory.enableProcessingLayer(0);
 
-    // Single-layer defaults
+    // Default validated boot layer selection
     instr_layer = 0;
     data_layer  = 0;
     // Reset pipeline registers
@@ -2217,15 +2551,16 @@ extern "C" void Crypto3DStackCPU_top(volatile uint32_t* image,
         if (key_check_failed || stackedMemory.isSecurityLocked()) {
             break;
         }
+        perf_cycle_count++;
         if (wb_reg.valid)       wb_reg.valid = false;
         if (mem_reg.valid)      stage_writeback();
         if (exec_reg.valid) {
-            if (exec_reg.taken_branch) {
-                // flush pipeline on branch
+            if (exec_reg.control_mispredict) {
+                // Recover from static branch-prediction miss.
                 decr_reg.valid       = false;
                 decode_reg.valid     = false;
                 fetch_reg.valid      = false;
-                fetch_reg.block_addr = exec_reg.new_block_addr;
+                fetch_reg.block_addr = exec_reg.recovery_block_addr;
             }
             stage_memory();
         }
@@ -2233,8 +2568,12 @@ extern "C" void Crypto3DStackCPU_top(volatile uint32_t* image,
         if (decr_reg.valid) {
             uint32_t next_instr = decr_reg.decr_block[decr_reg.instr_index];
             uint8_t a_sel, b_sel;
-            if (!checkDataHazard(next_instr, exec_reg.instr, mem_reg.instr, a_sel, b_sel)) {
+            bool must_stall = checkDataHazard(next_instr, exec_reg.instr, mem_reg.instr, a_sel, b_sel);
+            if (!must_stall) {
                 stage_decode(false);
+            } else {
+                pipeline_stall_count++;
+                perf_load_use_stalls++;
             }
         } else {
             stage_decrypt();
@@ -2259,6 +2598,15 @@ extern "C" void Crypto3DStackCPU_top(volatile uint32_t* image,
                 if (dec[i] != 0x00000000)
                     printf("L%u[%03X] = 0x%08X\n", instr_layer, a+i, dec[i]);
             }
+        }
+    }
+#endif
+
+#if CRYPTO3D_ENABLE_OUTPUT_RESEAL
+    if (key_valid && !key_check_failed && !stackedMemory.isSecurityLocked()) {
+        int reseal_rc = secure_reseal_current_image(0);
+        if (reseal_rc != 0) {
+            key_check_failed = true;
         }
     }
 #endif

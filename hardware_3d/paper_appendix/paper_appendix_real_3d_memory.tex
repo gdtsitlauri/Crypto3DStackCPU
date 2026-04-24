@@ -1,0 +1,13 @@
+\section{Four-Layer 3D Stacked-Memory Hardware Extension}
+
+Crypto3DStackCPU includes a four-layer C++/HLS \texttt{StackedMemory3D} abstraction in the main CPU implementation and a complementary hardware-oriented 3D memory package. The four logical layers are assigned as follows: layer 0 is the regression-tested sealed-image execution layer; layer 1 is reserved for future encrypted data/cache separation; layer 2 is reserved for future key/metadata hiding; and layer 3 is reserved for tamper/sentinel redundancy.
+
+The \texttt{hardware\_3d/} package adds a SystemVerilog behavioral memory-stack model, TSV channel abstraction, TSV interconnect model, bridge stub, layer map, stack configuration, and foundry/signoff checklists. This package is intended to prepare the validated CPU/security prototype for future FPGA-emulated or PDK-bound physical integration.
+
+The current work does not claim fabricated 3D stacked-memory silicon, GDSII signoff, or physical TSV layout. A true fabricated implementation would require foundry PDK access, SRAM or HBM macros, TSV cells, LEF/DEF and Liberty views, parasitic extraction, DRC/LVS decks, thermal analysis, IR/EM signoff, package design, and silicon validation.
+
+The safe claim is:
+
+\begin{quote}
+Crypto3DStackCPU provides a validated cryptographic CPU/security stack with a four-layer C++/HLS 3D-stacked-memory abstraction and RTL-level TSV/memory models prepared for future physical 3D IC integration.
+\end{quote}

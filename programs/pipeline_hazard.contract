@@ -1,0 +1,14 @@
+# Validation contract for pipeline_hazard.asm
+signature.enabled=true
+signature.pre_zero=true
+signature.offset=0
+signature.expected=0x00000036
+
+registers.enabled=false
+reg.2=0x00000005
+reg.3=0x0000000C
+reg.4=0x00000011
+reg.6=0x0000000A
+reg.7=0x0000001B
+reg.8=0x0000001B
+reg.9=0x00000036

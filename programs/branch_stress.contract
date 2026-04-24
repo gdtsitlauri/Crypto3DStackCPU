@@ -1,0 +1,12 @@
+# Validation contract for branch_stress.asm
+signature.enabled=true
+signature.pre_zero=true
+signature.offset=0
+signature.expected=0x0000000D
+
+registers.enabled=false
+reg.2=0x00000000
+reg.3=0x00000001
+reg.4=0x00000005
+reg.5=0x0000000C
+reg.6=0x0000000D

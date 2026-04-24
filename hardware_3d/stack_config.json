@@ -1,0 +1,50 @@
+{
+  "project": "Crypto3DStackCPU",
+  "memory_stack": {
+    "layers": 4,
+    "words_per_layer": 1024,
+    "word_width": 32,
+    "block_words": 4,
+    "validated_execution_layer": 0,
+    "default_boot_policy": "sealed image boots from layer 0 for compatibility",
+    "integration_status": "4-layer C++/HLS memory abstraction active; RTL/TSV package provided"
+  },
+  "layer_roles": [
+    {
+      "layer": 0,
+      "role": "secure boot/execution image layer",
+      "status": "regression-tested default execution path"
+    },
+    {
+      "layer": 1,
+      "role": "future encrypted data/cache separation layer",
+      "status": "supported by C++ memory model and RTL package"
+    },
+    {
+      "layer": 2,
+      "role": "future key/metadata hiding layer",
+      "status": "supported by C++ memory model and RTL package"
+    },
+    {
+      "layer": 3,
+      "role": "future redundancy/tamper-sentinel layer",
+      "status": "supported by C++ memory model and RTL package"
+    }
+  ],
+  "security": {
+    "plaintext_app_key_in_memory": false,
+    "wrapped_key_header": true,
+    "hidden_key_bits": true,
+    "per_layer_access_control": true,
+    "per_layer_encryption_api": true,
+    "tamper_sentinel_model": true,
+    "tsv_fault_model": true
+  },
+  "fabrication_status": {
+    "pdk_bound": false,
+    "gdsii_available": false,
+    "tsv_cell_available": false,
+    "silicon_fabricated": false,
+    "fpga_validated": false
+  }
+}

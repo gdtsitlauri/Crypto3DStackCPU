@@ -19,5 +19,13 @@ main:
     la   $9, signature
     sw   $8, 0($9)
 
+    # Pad so the jump target is 4-instruction-block aligned.
+    # la expands to two instructions, so only two NOPs are needed here.
+    nop
+    nop
+
 end:
     j end
+    nop
+    nop
+    nop

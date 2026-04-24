@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# OS / Editor
+# OS / editor
 # ----------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
@@ -30,9 +30,22 @@ temp/
 *.elf
 *.map
 
-# Generated images/binaries from local pipeline
+# ----------------------------------------------------------------------------
+# Generated Crypto3DStackCPU artifacts
+# ----------------------------------------------------------------------------
 *.hex
 *.bin
+text.hex
+data.hex
+decrypted_text.hex
+demo_after.hex
+postrun.contract
+demo_tamper.hex
+tamper_*.hex
+multilayer_memory_test
+
+# Temporary generated test folder
+/tests/
 
 # Logs and temporary files
 *.log
@@ -41,6 +54,11 @@ temp/
 *.bak
 *.swp
 *.lock
+
+# Keep intentional result summaries, but ignore timestamped raw logs by default.
+# Comment this out if you want to commit validation logs.
+results/run_all_tests_*.log
+results/run_all_tests_after_reorg_*.log
 
 # ----------------------------------------------------------------------------
 # CMake / tooling outputs
@@ -69,8 +87,26 @@ export/
 # Project-local IDE workspace artifacts
 _ide/
 
-# HLS run/generated trees (keep config files in 3D_hls_component root)
+# HLS run/generated trees; keep config files in 3D_hls_component root
 3D_hls_component/**/hls/
 3D_hls_component/**/logs/
 3D_hls_component/**/reports/
 3D_hls_component/**/.autopilot/
+3D_hls_component/**/solution*/
+3D_hls_component/**/Crypto3DStackCPU_top/
+
+# ----------------------------------------------------------------------------
+# LaTeX build artifacts
+# ----------------------------------------------------------------------------
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.pdf

@@ -4,6 +4,8 @@ signature.pre_zero=true
 signature.offset=0
 signature.expected=0x0000002A
 
+# Disable built-in demo register defaults before declaring this program's checks.
+registers.enabled=false
 reg.2=0x00000005
 reg.3=0x00000009
 reg.4=0x0000000C

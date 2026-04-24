@@ -1,0 +1,10 @@
+tsv_id,signal_group,from_layer,to_layer,width,security_note
+TSV_ADDR_0,address,logic_layer,memory_layers,10,word address
+TSV_LAYER_SEL,layer_select,logic_layer,memory_layers,2,selects one of 4 layers
+TSV_WDATA,write_data,logic_layer,memory_layers,32,encrypted/plain internal bus depending on mode
+TSV_RDATA,read_data,memory_layers,logic_layer,32,must not expose plaintext outside trust boundary
+TSV_CTRL_REN,read_enable,logic_layer,memory_layers,1,access-controlled
+TSV_CTRL_WEN,write_enable,logic_layer,memory_layers,1,access-controlled
+TSV_READY,ready,memory_layers,logic_layer,1,transaction done
+TSV_TAMPER,tamper_alert,memory_layers,logic_layer,1,latches security lock
+TSV_ECC,integrity_ecc,memory_layers,logic_layer,7,future ECC/syndrome channel

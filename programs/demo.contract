@@ -6,6 +6,7 @@ signature.offset=0
 signature.expected=0x000000AE
 
 # Register checks
+registers.enabled=false
 reg.2=0x00000001
 reg.3=0x00000002
 reg.4=0x00000003

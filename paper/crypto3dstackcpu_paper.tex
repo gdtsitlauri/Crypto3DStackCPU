@@ -1,61 +1,666 @@
 \documentclass[conference]{IEEEtran}
-\usepackage{amsmath}
-\usepackage{booktabs}
-\usepackage{graphicx}
+\IEEEoverridecommandlockouts
 
-\title{Crypto3DStackCPU: A Secure Single-Layer CPU Stack with Sealed Images and AES Instruction Support}
+% ---------------- Packages ----------------
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[inline]{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{balance}
+\PassOptionsToPackage{hyphens}{url}
+\usepackage[hidelinks]{hyperref}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\newcommand{\AES}{\operatorname{AES}}
+\newcommand{\HKDF}{\operatorname{HKDF}}
+\newcommand{\HMAC}{\operatorname{HMAC}}
+\newcommand{\SHA}{\operatorname{SHA\mbox{-}256}}
+\newcommand{\gcdop}{\operatorname{gcd}}
+\newcommand{\rotl}{\operatorname{rotl}}
+
+\setlist{noitemsep,topsep=2pt,leftmargin=*}
+\emergencystretch=2em
+\Urlmuskip=0mu plus 1mu
+\interdisplaylinepenalty=2500
+
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,columns=fullflexible,showstringspaces=false}
+
+\title{Crypto3DStackCPU: A Validated Cryptographic MIPS-like CPU with\
+Integrated Four-Layer 3D-Stacked-Memory Abstraction, Authenticated Sealed Images,\
+Pipeline Hazard Handling, Branch Recovery, and Executable AES ISA Extensions}
 
 \author{\IEEEauthorblockN{George David Tsitlauri}
-\IEEEauthorblockA{\textit{Dept. of Informatics \& Telecommunications}\\
-\textit{University of Thessaly, Greece}\\
- gdtsitlauri@gmail.com}}
+\IEEEauthorblockA{\textit{Department of Informatics \& Telecommunications} \\
+\textit{University of Thessaly, Greece} \\
+gdtsitlauri@gmail.com}}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Crypto3DStackCPU is a hardware/security research repository that implements a secure single-layer CPU stack with image sealing, authenticated headers, encrypted instruction fetch, encrypted-at-rest data handling, custom AES instructions, and contract-based validation. The repository includes a local assembler, end-to-end build and audit scripts, and HLS-oriented integration scaffolding. The strongest current evidence is implementation depth and security-flow completeness rather than broad benchmark coverage.
+This paper presents \textbf{Crypto3DStackCPU}, a validated software/HLS-ready research prototype of a cryptographic MIPS-like processor coupled to an integrated four-layer 3D-stacked-memory abstraction. The design combines a hardwired in-order pipeline with encrypted instruction fetch, encrypted data access, authenticated sealed images, executable AES-128 ISA extensions, hazard forwarding, load-use stalls, store-data forwarding, basic branch prediction/recovery, architectural performance counters, and authenticated tamper rejection. The secure image format includes a 32-word header, per-image app-key generation, key wrapping, nonce/epoch-based text block mapping, key and image tags, and post-execution reseal validation. The four logical memory layers separate encrypted text, encrypted data, key/security metadata, and tamper-sentinel information. The implementation is validated with AES known-answer tests, multi-layer memory tests, assembler negative tests, contract-driven program execution, pipeline hazard audits, memory/branch/AES benchmark workloads, and extended tamper tests. After final repository reorganization into \texttt{src/}, \texttt{programs/}, \texttt{docs/}, \texttt{paper/}, \texttt{results/}, and \texttt{hardware\_3d/}, the complete regression suite passes. The design does not claim fabricated 3D silicon, FPGA board validation, Vivado timing closure, or side-channel security; these are future work.
 \end{abstract}
 
+\begin{IEEEkeywords}
+secure processor, 3D stacked memory, MIPS, AES, authenticated image, HKDF, HMAC, pipeline hazards, forwarding, branch prediction, Vitis HLS, Artix-7, tamper detection.
+\end{IEEEkeywords}
+
+% ------------------------------------------------------------
 \section{Introduction}
-Secure processor research often separates architecture, toolchain, and validation. Crypto3DStackCPU studies these concerns together in a compact repository that integrates assembly generation, image sealing, runtime validation, encrypted fetch, and negative tamper testing.
+% ------------------------------------------------------------
 
-\section{Repository Scope}
-The repository implements:
+Embedded and edge systems increasingly require local computation over code and data that may be stored, transported, or loaded by an untrusted host. A conventional soft CPU normally assumes that instruction memory is already trustworthy. In contrast, a cryptographic CPU must verify and decrypt the program image before execution and must reject any tampered image before the first instruction is trusted.
+
+Crypto3DStackCPU addresses this problem as an implementation-first research prototype. It integrates a MIPS-like instruction set, a secure image loader, an AES datapath, pipeline hazard handling, performance visibility, and a four-layer 3D-stacked-memory abstraction. The project is not only a cryptographic storage wrapper around a CPU; the same sealed image key is also available to executable AES ISA instructions, allowing a program to exercise cryptographic operations inside the CPU itself.
+
+\textbf{Contributions.} This work contributes:
+\begin{enumerate}
+    \item A validated MIPS-like cryptographic CPU prototype with encrypted instruction and data regions.
+    \item A four-layer 3D memory abstraction separating encrypted text, encrypted data, key/security metadata, and tamper sentinels.
+    \item A sealed-image flow with key wrapping, authenticated header fields, measurement, and tamper rejection.
+    \item A hardwired pipelined control path with forwarding, load-use stalls, store-data forwarding, branch recovery, and architectural counters.
+    \item Executable \texttt{aesenc} and \texttt{aesdec} ISA extensions using the image-bound app key.
+    \item A reproducible validation suite covering cryptographic KATs, assembler negative cases, pipeline hazards, benchmark workloads, reseal validation, and extended tamper tests.
+\end{enumerate}
+
+\textbf{Scope.} The current work is a software/HLS-ready prototype. It is prepared for Vitis HLS and Vivado/Artix-7 evaluation, but no FPGA timing closure or physical board measurement is claimed. Side-channel resistance and real fabricated 3D stacked-memory silicon are future work.
+
+% ------------------------------------------------------------
+\section{Relationship to Computer Engineering Curriculum}
+% ------------------------------------------------------------
+
+The project combines concepts from four core course areas. Table~\ref{tab:course-map} summarizes the mapping.
+
+\begin{table}[!t]
+\caption{Course concepts integrated into Crypto3DStackCPU.}
+\label{tab:course-map}
+\centering
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}L{0.24\columnwidth}Y@{}}
+\toprule
+Course area & Incorporated concepts \\
+\midrule
+Principles of Computer Operation & MIPS-like assembly, registers, instruction operands, integer arithmetic, logic, shifts, multiplication, memory operands, data representation in 32-bit words. \\
+Computer Organization & CPU datapath, hardwired control, micro-operations, fetch/decode/execute/memory/writeback, pipelining, forwarding, load-use stalls, branch recovery, memory hierarchy. \\
+Computer Architecture & CPI, retired-instruction counts, benchmark workloads, branch metrics, stall metrics, cache visibility counters, Amdahl-style performance reasoning. \\
+Parallel Systems / HDL & Layered memory organization, TSV abstraction, RTL-level 3D memory model, hardware-readiness package, future NoC/multicore direction. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The design intentionally avoids out-of-order execution, Tomasulo scheduling, VLIW issue, and superscalar dispatch because those mechanisms would require register renaming, reservation stations, reorder/commit logic, multi-issue dependency analysis, and a significantly more complex security model for encrypted memory accesses. They are better treated as future extensions.
+
+% ------------------------------------------------------------
+\section{Threat Model and Security Goals}
+% ------------------------------------------------------------
+
+\textbf{Adversary.} The adversary may inspect, copy, replace, or bit-flip the sealed image outside the trusted CPU boundary. The adversary may attempt to splice headers, modify encrypted text/data, corrupt wrapped-key fields, or provide malformed assembly programs.
+
+\textbf{Out of scope.} The following are out of scope for the current prototype: physical probing, power/EM side-channel analysis, voltage/clock glitch fault injection, JTAG extraction of internal CPU registers, and real silicon attacks against a fabricated 3D stack.
+
+\textbf{Goals.}
+\begin{enumerate}[label=G\arabic*.,leftmargin=*]
+    \item Encrypted-at-rest instruction and data regions.
+    \item Authenticated image validation before trusted fetch.
+    \item Failure-closed behavior on tamper detection.
+    \item Contract-driven proof that the CPU executed the expected program.
+    \item Post-execution reseal and reload validation.
+    \item Architectural separation of text, data, key metadata, and tamper markers across four memory layers.
+\end{enumerate}
+
+% ------------------------------------------------------------
+\section{Repository Organization}
+% ------------------------------------------------------------
+
+The final repository structure separates implementation, programs, documentation, results, paper, and hardware-readiness assets:
+
+\begin{lstlisting}
+Crypto3DStackCPU/
+  src/                 C++ CPU, tools, tests, headers
+  programs/            ASM benchmarks and contracts
+  docs/                architecture/security notes
+  results/             logs and result summaries
+  paper/               IEEE-style manuscript
+  hardware_3d/         RTL/TSV/fabrication-readiness package
+  3D_hls_component/    Vitis HLS configuration
+  research_extensions/ optional archived extensions
+\end{lstlisting}
+
+After this reorganization, the full regression suite was rerun and passed, proving that the new paths are functional.
+
+% ------------------------------------------------------------
+\section{Top-Level Architecture}
+% ------------------------------------------------------------
+
+Figure~\ref{fig:top} shows the high-level system.
+
+\begin{figure}[!t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=5mm,
+    box/.style={draw, rounded corners, minimum width=18mm, minimum height=8mm, align=center, font=\small},
+    bigbox/.style={draw, rounded corners, minimum width=70mm, minimum height=9mm, align=center, font=\small},
+    arrow/.style={-Latex, thick}
+]
+\node[bigbox] (asm) {MIPS-like assembly programs and contracts};
+\node[bigbox, below=of asm] (tools) {Assembler $\rightarrow$ sealer $\rightarrow$ sealed image};
+\node[bigbox, below=of tools] (top) {\texttt{Crypto3DStackCPU\_top(image, word\_count, status)}};
+\node[box, below=of top, xshift=-28mm] (pipe) {Fetch/Decrypt\\Decode/Execute};
+\node[box, below=of top] (aes) {AES-128\\ISA path};
+\node[box, below=of top, xshift=28mm] (sec) {Header/key\\validation};
+\node[bigbox, below=14mm of aes] (mem) {4-layer 3D-stacked-memory abstraction};
+\node[bigbox, below=of mem] (test) {Contract checker, counters, tamper audit, reseal validation};
+
+\draw[arrow] (asm) -- (tools);
+\draw[arrow] (tools) -- (top);
+\draw[arrow] (top) -- (pipe);
+\draw[arrow] (top) -- (aes);
+\draw[arrow] (top) -- (sec);
+\draw[arrow] (pipe) -- (mem);
+\draw[arrow] (aes) -- (mem);
+\draw[arrow] (sec) -- (mem);
+\draw[arrow] (mem) -- (test);
+\end{tikzpicture}}
+\caption{Top-level system. Assembly programs are converted into sealed images, validated by the secure CPU, executed through a decrypting pipeline, and checked by contracts and tamper tests.}
+\label{fig:top}
+\end{figure}
+
+% ------------------------------------------------------------
+\section{Four-Layer 3D Memory Abstraction}
+% ------------------------------------------------------------
+
+The 3D memory organization is shown in Figure~\ref{fig:layers}. Four layers are used because they provide a clear security separation without unnecessary complexity.
+
+\begin{figure}[!t]
+\centering
+\resizebox{0.96\columnwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize]
+\draw[fill=gray!10] (0,0) rectangle (70mm,7mm);
+\draw[fill=gray!15] (4mm,7mm) rectangle (74mm,14mm);
+\draw[fill=gray!20] (8mm,14mm) rectangle (78mm,21mm);
+\draw[fill=gray!25] (12mm,21mm) rectangle (82mm,28mm);
+\node at (35mm,3.5mm) {Layer 0: encrypted instruction text};
+\node at (39mm,10.5mm) {Layer 1: encrypted program data};
+\node at (43mm,17.5mm) {Layer 2: key/security metadata};
+\node at (47mm,24.5mm) {Layer 3: tamper sentinels / redundancy};
+\draw[-Latex, thick] (88mm,3.5mm) -- (74mm,3.5mm) node[midway,above] {fetch};
+\draw[-Latex, thick] (88mm,10.5mm) -- (78mm,10.5mm) node[midway,above] {load/store};
+\draw[-Latex, thick] (88mm,17.5mm) -- (82mm,17.5mm) node[midway,above] {key logic};
+\draw[-Latex, thick] (88mm,24.5mm) -- (86mm,24.5mm) node[midway,above] {tamper};
+\end{tikzpicture}}
+\caption{Logical four-layer 3D-stacked-memory abstraction. The layers separate text, data, key metadata, and tamper markers.}
+\label{fig:layers}
+\end{figure}
+
+\begin{table}[!t]
+\caption{Layer roles.}
+\label{tab:layers}
+\centering
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}c L{0.23\columnwidth} Y@{}}
+\toprule
+Layer & Name & Function \\
+\midrule
+0 & Text layer & Stores encrypted instruction blocks and supports secure fetch/decrypt. \\
+1 & Data layer & Stores encrypted program data and supports secure \texttt{lw}/\texttt{sw}. \\
+2 & Key metadata layer & Holds abstracted key/security metadata and hidden material mechanisms. \\
+3 & Tamper layer & Holds sentinels/redundancy markers for tamper detection and future fault models. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+One layer would be simpler but would mix code, data, keys, and tamper metadata. Two layers separate text and data but still mix security metadata. Three layers separate security metadata but combine key and tamper roles. Four layers provide a natural and explainable security-oriented partition.
+
+% ------------------------------------------------------------
+\section{Secure Image Format}
+% ------------------------------------------------------------
+
+The sealed image uses a 32-word secure header followed by encrypted text and data regions. Figure~\ref{fig:layout} gives the logical layout.
+
+\begin{figure}[!t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize]
+\draw (0,0) rectangle (80mm,7mm);
+\draw (20mm,0) -- (20mm,7mm);
+\draw (52mm,0) -- (52mm,7mm);
+\draw (70mm,0) -- (70mm,7mm);
+\node at (10mm,3.5mm) {Header};
+\node at (36mm,3.5mm) {Encrypted .text};
+\node at (61mm,3.5mm) {Encrypted .data};
+\node at (75mm,3.5mm) {Pad};
+\node at (0,-2mm) {0};
+\node at (20mm,-2mm) {32};
+\node at (52mm,-2mm) {text end};
+\node at (70mm,-2mm) {data end};
+\node at (80mm,-2mm) {1023};
+\end{tikzpicture}}
+\caption{Word-granular sealed image layout.}
+\label{fig:layout}
+\end{figure}
+
+\begin{table}[!t]
+\caption{Secure header fields.}
+\label{tab:header}
+\centering
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}c L{0.25\columnwidth} Y@{}}
+\toprule
+Word(s) & Field & Purpose \\
+\midrule
+0 & Magic & Identifies a Crypto3D secure image. \\
+1 & Version & Header version. \\
+2 & Flags & Secure feature flags. \\
+3 & Policy & Mapping, tamper, and reseal policy. \\
+4--6 & Text descriptor & Text start, plaintext words, encrypted end. \\
+7 & Epoch & Reseal/mapping epoch. \\
+8--11 & Nonce & 128-bit nonce. \\
+12--15 & Wrapped key & AES-wrapped app key. \\
+16--19 & Key tag & Truncated HMAC tag for key binding. \\
+20--23 & Image tag & Truncated HMAC tag for the sealed image. \\
+24--27 & Measurement & Measurement digest fragment. \\
+28--31 & Data descriptor & Data start, words, end, flags. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ------------------------------------------------------------
+\section{Cryptographic Construction}
+% ------------------------------------------------------------
+
+Each sealed image is protected by a fresh 128-bit app key $K_{app}$. A session key $K_s$ is derived from a hardware-rooted value, nonce $N$, measurement $M$, and context information:
+
+\begin{equation}
+K_s = \HKDF(H_{root}, N \parallel M, \textsf{info}).
+\end{equation}
+
+The app key is wrapped by AES:
+
+\begin{equation}
+W = \AES_{K_s}(K_{app}).
+\end{equation}
+
+Two authentication tags bind the header, wrapped key, measurement, and image contents:
+
+\begin{equation}
+T_K = \HMAC_{K_s}(\textsf{KEYT} \parallel H_{fixed} \parallel W \parallel M)[0..127],
+\end{equation}
+
+\begin{equation}
+T_I = \HMAC_{K_s}(\textsf{IMGT} \parallel H_{fixed} \parallel M \parallel C_{covered})[0..127].
+\end{equation}
+
+The encrypted text region is block permuted. For text block $b$ among $L$ blocks:
+
+\begin{equation}
+\pi(b)=((m b + a) \bmod L)+start,
+\end{equation}
+
+where $\gcdop(m,L)=1$ ensures invertibility.
+
+% ------------------------------------------------------------
+\section{Algorithms}
+% ------------------------------------------------------------
+
+\begin{algorithm}[!t]
+\caption{Seal Image}
+\label{alg:seal}
+\footnotesize
+\begin{algorithmic}[1]
+\Require Plain text words, plain data words, epoch, policy
+\State Generate fresh app key $K_{app}$.
+\State Create fixed header fields and region descriptors.
+\State Generate nonce $N$ and block mapping $\pi$.
+\State Encrypt text blocks using $\AES_{K_{app}}$ and place by $\pi$.
+\State Encrypt data blocks using $\AES_{K_{app}}$.
+\State Compute measurement $M$ over fixed fields and covered ciphertext.
+\State Derive session key $K_s$ using HKDF.
+\State Compute wrapped key $W=\AES_{K_s}(K_{app})$.
+\State Scatter/check hidden key metadata through the layer abstraction.
+\State Compute $T_K$ and $T_I$.
+\State Emit sealed image.
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!t]
+\caption{Validate Image Before Fetch}
+\label{alg:validate}
+\footnotesize
+\begin{algorithmic}[1]
+\State Read header fields.
+\If{magic/version/policy/regions are invalid} \State reject \EndIf
+\State Recompute mapping $\pi$ and measurement $M'$.
+\If{$M' \ne M$} \State reject \EndIf
+\State Derive $K_s$.
+\State Verify wrapped-key consistency.
+\State Verify key tag $T_K$.
+\State Verify image tag $T_I$.
+\If{all checks pass}
+    \State unwrap app key and unlock fetch/decrypt path.
+\Else
+    \State lock CPU and refuse execution.
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!t]
+\caption{Pipeline Hazard Control}
+\label{alg:hazard}
+\footnotesize
+\begin{algorithmic}[1]
+\Require Current decode instruction and later pipeline registers
+\State Detect source registers of decode instruction.
+\State Compare sources with destinations in execute/memory/writeback.
+\If{value available from memory-side pipeline stage}
+    \State forward from memory-side result.
+\ElsIf{value available from writeback stage}
+    \State forward from writeback result.
+\ElsIf{load-use dependency cannot be forwarded yet}
+    \State insert stall and increment load-use stall counter.
+\EndIf
+\If{store instruction needs just-produced store data}
+    \State forward store data and increment store-data-forward counter.
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!t]
+\caption{Branch Prediction and Recovery}
+\label{alg:branch}
+\footnotesize
+\begin{algorithmic}[1]
+\State Predict next block using the static frontend rule.
+\State Execute branch/jump and resolve actual next block.
+\If{predicted block differs from resolved block}
+    \State flush fetch/decrypt/decode registers.
+    \State restart fetch at resolved block.
+    \State increment branch-mispredict counter.
+\Else
+    \State continue without recovery.
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+% ------------------------------------------------------------
+\section{Pipeline and Control Unit}
+% ------------------------------------------------------------
+
+The CPU is a hardwired in-order pipeline with a dedicated decrypt stage between fetch and decode. The pipeline stages are:
+
+\begin{center}
+\texttt{Fetch $\rightarrow$ Decrypt $\rightarrow$ Decode $\rightarrow$ Execute $\rightarrow$ Memory $\rightarrow$ Writeback}
+\end{center}
+
+Unlike a textbook unencrypted MIPS pipeline, Crypto3DStackCPU cannot decode directly from memory. The Fetch stage reads encrypted blocks, the Decrypt stage uses the validated app key, and only then can Decode interpret the instruction word.
+
+\begin{table*}[!t]
+\caption{Micro-operation summary for representative instructions.}
+\label{tab:microops}
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}L{0.11\textwidth}YYYYYY@{}}
+\toprule
+Instruction & Fetch & Decrypt & Decode & Execute & Memory & Writeback \\
+\midrule
+\texttt{add} & fetch encrypted block & decrypt block & read operands & ALU add & none & write \texttt{rd} \\
+\texttt{addi} & fetch encrypted block & decrypt block & read \texttt{rs}, imm & ALU add immediate & none & write \texttt{rt} \\
+\texttt{lw} & fetch encrypted block & decrypt block & read base & address calc & secure data read & write \texttt{rt} \\
+\texttt{sw} & fetch encrypted block & decrypt block & read base/data & address calc & secure data write & none \\
+\texttt{beq/bne} & fetch encrypted block & decrypt block & read operands & compare/redirect & flush if needed & none \\
+\texttt{j} & fetch encrypted block & decrypt block & decode target & redirect & flush if needed & none \\
+\texttt{aesenc} & fetch encrypted block & decrypt block & read operands & AES encrypt & none & write result \\
+\texttt{aesdec} & fetch encrypted block & decrypt block & read state & AES decrypt & none & write result \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+The control unit is hardwired rather than microprogrammed. This choice keeps the secure fetch/decrypt/execute path deterministic and easier to validate.
+
+% ------------------------------------------------------------
+\section{Hazards, Forwarding, and Branch Handling}
+% ------------------------------------------------------------
+
+The design implements basic but functional in-order hazard support. The final regression suite validates two load-use stalls and one store-data forwarding event in the pipeline hazard benchmark. Forwarding from later stages reduces unnecessary stalls.
+
+\textbf{Load-use hazard.} If an instruction consumes the result of an immediately preceding load before the value is available, the decode stage inserts a stall.
+
+\textbf{Forwarding.} ALU results can be forwarded from memory-side or writeback-side pipeline registers. The counters \texttt{forward\_mem} and \texttt{forward\_wb} expose those events.
+
+\textbf{Store-data forwarding.} If a store needs a value produced by a prior instruction, the store data can be forwarded instead of reading stale register-file data.
+
+\textbf{Branch recovery.} Branches and jumps are resolved deterministically. If the predicted block is not the resolved block, the frontend is flushed and fetch restarts at the correct block. The counters \texttt{branch\_predictions} and \texttt{branch\_mispredicts} expose this behavior.
+
+% ------------------------------------------------------------
+\section{ISA and Custom AES Instructions}
+% ------------------------------------------------------------
+
+Table~\ref{tab:isa} summarizes the supported ISA.
+
+\begin{table}[!t]
+\caption{Supported ISA subset.}
+\label{tab:isa}
+\centering
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}L{0.18\columnwidth}Y@{}}
+\toprule
+Class & Instructions \\
+\midrule
+Arithmetic & \texttt{add}, \texttt{sub}, \texttt{addi}, \texttt{mult} \\
+Logic & \texttt{and}, \texttt{or}, \texttt{xor}, \texttt{ori}, \texttt{lui} \\
+Shift & \texttt{sll}, \texttt{srl} \\
+Memory & \texttt{lw}, \texttt{sw}, \texttt{la} pseudo-op \\
+Control & \texttt{beq}, \texttt{bne}, \texttt{j} \\
+Crypto & \texttt{aesenc}, \texttt{aesdec} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The AES instructions are executed by the CPU and use the same app-key domain as the sealed image. This links the ISA extension to the image security model rather than treating AES as an external test utility.
+
+% ------------------------------------------------------------
+\section{Memory Hierarchy}
+% ------------------------------------------------------------
+
+The memory hierarchy is security-oriented:
+
+\begin{enumerate}
+    \item Pipeline registers and AES co-processor state.
+    \item Instruction/data cache visibility counters and access buffers.
+    \item Four-layer 3D-stacked-memory abstraction.
+    \item Sealed host image file.
+\end{enumerate}
+
+The design does not implement a conventional L1/L2/L3 cache hierarchy. Instead, it emphasizes encrypted-at-rest memory and validated access through the CPU boundary. Data loads/stores to sealed data memory follow a secure decrypt/modify/encrypt path.
+
+% ------------------------------------------------------------
+\section{Performance Counters and Amdahl-Style Interpretation}
+% ------------------------------------------------------------
+
+The testbench reports counters over a fixed validation window of 2000 cycles. CPI is reported as:
+
+\begin{equation}
+\text{CPI}_{window}=\frac{\text{validation window cycles}}{\text{retired instructions}}.
+\end{equation}
+
+This should not be interpreted as final FPGA performance. It is an architectural visibility metric for regression comparison.
+
+If a fraction $f$ of the validation time is dominated by a component such as AES decrypt or memory handling, and that component is accelerated by factor $S$, the classical Amdahl bound is:
+
+\begin{equation}
+\text{Speedup}=\frac{1}{(1-f)+\frac{f}{S}}.
+\end{equation}
+
+This provides a structured way to discuss future Vitis/Vivado optimization: accelerating only the AES datapath or only the memory path cannot improve the whole system beyond the non-accelerated fraction.
+
+% ------------------------------------------------------------
+\section{Validation Methodology}
+% ------------------------------------------------------------
+
+Validation is contract-driven. Each program has an assembly source and a contract. The testbench checks the secure image, executes the CPU, validates the expected signature/register values, reloads the resealed output, and rejects tampered variants.
+
+\begin{table*}[!t]
+\caption{Final regression validation summary after repository reorganization.}
+\label{tab:validation}
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}L{0.26\textwidth}L{0.15\textwidth}Y@{}}
+\toprule
+Validation category & Result & Evidence \\
+\midrule
+AES-128 FIPS-197 KAT & PASS & Encrypt/decrypt known-answer test passed. \\
+4-layer memory abstraction & PASS & Independent layers, encrypted raw read, logical decrypt read, per-layer key hide/extract, tamper point tests. \\
+Assembler negative tests & PASS & Bad registers, misaligned branch/jump targets, duplicate labels, bad load/store offsets, unknown instructions rejected. \\
+Default demo audit & PASS & Signature \texttt{0xAE}, register checks, reseal reload validation, tamper rejection. \\
+Alternate demo audit & PASS & Signature \texttt{0x2A}, alternate contract, reseal validation, tamper rejection. \\
+Pipeline hazard audit & PASS & Load-use stalls, forwarding, store-data forwarding, final signature \texttt{0x36}. \\
+Architecture benchmark suite & PASS & Memory, branch, AES, and pipeline-hazard workloads passed. \\
+Extended tamper suite & PASS & Header magic/policy, wrapped key, key tag, image tag, encrypted text, and encrypted data tampering rejected. \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+The final marker was:
+
+\begin{lstlisting}
+[ALL REGRESSION TESTS PASSED]
+Crypto KATs, multi-layer memory tests, assembler negative tests, demo audits, alt audits,
+pipeline hazard/forwarding audit, architecture benchmark suite, and extended tamper rejection tests all passed.
+\end{lstlisting}
+
+% ------------------------------------------------------------
+\section{Benchmark Results}
+% ------------------------------------------------------------
+
+Table~\ref{tab:counters} summarizes representative counters from the final regression. All counters are over the fixed 2000-cycle validation window.
+
+\begin{table*}[!t]
+\caption{Representative architectural counter results.}
+\label{tab:counters}
+\centering
+\scriptsize
+\begin{tabular}{@{}lrrrrrrrrr@{}}
+\toprule
+Program & Retired & Stalls & Load-use & Fwd MEM & Fwd WB & Store fwd & Branch MP & AES inst. & Signature \\
+\midrule
+\texttt{demo.asm} & 60 & 1 & 1 & 17 & 10 & 0 & 2 & 2 & \texttt{0xAE} \\
+\texttt{demo\_alt.asm} & 11 & 0 & 0 & 3 & 1 & 0 & 0 & 0 & \texttt{0x2A} \\
+\texttt{pipeline\_hazard.asm} & 14 & 2 & 2 & 5 & 5 & 1 & 0 & 0 & \texttt{0x36} \\
+\texttt{memory\_stress.asm} & 14 & 0 & 0 & 4 & 4 & 1 & 0 & 0 & \texttt{0x0A} \\
+\texttt{branch\_stress.asm} & 7 & 0 & 0 & 4 & 1 & 0 & 2 & 0 & \texttt{0x0D} \\
+\texttt{aes\_stress.asm} & 11 & 0 & 0 & 3 & 3 & 0 & 0 & 4 & \texttt{0x0A} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The high fixed-window CPI values for short programs are expected because the validation harness executes a fixed 2000-cycle window. They are useful for comparing regression behavior, not for final post-synthesis performance claims.
+
+% ------------------------------------------------------------
+\section{Hardware-Readiness Assets}
+% ------------------------------------------------------------
+
+The \texttt{hardware\_3d/} directory contains an RTL-level readiness package:
+
 \begin{itemize}
-\item a local assembler without MARS dependency,
-\item sealed image construction with wrapped keys and authenticated headers,
-\item encrypted text fetch and protected data handling,
-\item custom AES instructions,
-\item contract-driven execution validation,
-\item a tamper-audit path that requires negative-test failure.
+    \item SystemVerilog 3D memory and TSV interconnect models;
+    \item testbench for the memory model;
+    \item TSV layer map;
+    \item floorplanning and constraint templates;
+    \item fabrication, PDK, GDSII, and foundry checklists;
+    \item paper appendix material describing the real 3D memory scope.
 \end{itemize}
 
-\section{Current Evidence}
-The strongest artifacts are operational rather than benchmark-heavy. The repository includes:
+These files do not mean that a chip was fabricated. They provide a structured path toward real hardware integration.
+
+% ------------------------------------------------------------
+\section{Limitations}
+% ------------------------------------------------------------
+
 \begin{itemize}
-\item \texttt{run\_custom\_pipeline.ps1} for end-to-end assembly, encryption, and execution,
-\item \texttt{run\_security\_audit.ps1} for positive and negative validation,
-\item \texttt{3d\_test.cpp} for contract-based functional proof,
-\item \texttt{3D\_hls\_component/} for HLS-facing integration work.
+    \item The current implementation is not FPGA board validated yet.
+    \item Vivado timing closure and resource reports are not yet available.
+    \item AES is functionally validated but not side-channel hardened.
+    \item The 3D stack is an abstraction/model and hardware-readiness package, not fabricated silicon.
+    \item The CPU is in-order and does not implement out-of-order execution, Tomasulo scheduling, superscalar issue, or VLIW dispatch.
+    \item CPI counters are fixed-window validation metrics, not final optimized performance numbers.
 \end{itemize}
 
-\section{Interpretation Boundary}
-Crypto3DStackCPU should be framed as a serious implementation-heavy hardware/security extension repository. The current working tree does not yet provide a broad benchmark section across performance, area, or multiple workloads, so stronger comparative claims should wait for expanded evaluation.
+% ------------------------------------------------------------
+\section{Future Work}
+% ------------------------------------------------------------
 
-\section{Why the Current Release Still Stands Up Well}
-Even without broad benchmark tables, the repository already provides a complete
-secure-execution workflow: local assembly, image sealing, authenticated
-validation, encrypted fetch, contract-driven verification, and a negative
-tamper audit. The remaining future work is downstream hardware validation in HLS
-and FPGA toolchains, not invention of the secure stack itself.
+Future work includes:
 
+\begin{enumerate}
+    \item Vitis HLS CSIM and synthesis with the reorganized \texttt{src/} paths.
+    \item Vivado IP integration and Artix-7 board validation.
+    \item Timing, area, and resource reports.
+    \item Side-channel hardening with bitsliced/masked AES and physical leakage measurements.
+    \item Fault-injection detection and redundant AES checks.
+    \item Optional dynamic branch predictor, scoreboard, or deeper memory hierarchy.
+    \item Multicore/NoC extension and secure 3D shared-memory experiments.
+    \item ASIC-ready RTL, PDK collaboration, GDSII signoff, and real 3D stacked-memory fabrication if foundry access becomes available.
+\end{enumerate}
+
+% ------------------------------------------------------------
 \section{Conclusion}
-Crypto3DStackCPU already demonstrates substantial hardware-security engineering. Its next step is not invention of core architecture, but systematic benchmarking and expanded manuscript-quality evaluation around the implemented secure execution path.
+% ------------------------------------------------------------
 
-\bibliographystyle{IEEEtran}
-\bibliography{references}
+Crypto3DStackCPU demonstrates that a compact MIPS-like CPU can be combined with a secure image format, AES-backed instruction and data confidentiality, authenticated tamper rejection, a four-layer 3D memory abstraction, executable AES ISA extensions, practical pipeline hazard handling, branch recovery, and architectural benchmarking. The final organized repository passes the full regression suite, including cryptographic KATs, multi-layer memory tests, assembler negative tests, demo audits, hazard audits, benchmark workloads, and extended tamper tests. The next milestone is hardware validation through Vitis HLS, Vivado, and Artix-7.
+
+\section*{Reproducibility}
+
+From the repository root:
+
+\begin{lstlisting}[language=bash]
+powershell -ExecutionPolicy Bypass -File .\run_all_tests.ps1
+\end{lstlisting}
+
+Expected final marker:
+
+\begin{lstlisting}
+[ALL REGRESSION TESTS PASSED]
+\end{lstlisting}
+
+\balance
+
+\begin{thebibliography}{9}
+
+\bibitem{nist-aes}
+NIST, ``FIPS 197: Advanced Encryption Standard (AES),'' 2001.
+
+\bibitem{nist-hmac}
+NIST, ``FIPS 198-1: The Keyed-Hash Message Authentication Code (HMAC),'' 2008.
+
+\bibitem{nist-sha2}
+NIST, ``FIPS 180-4: Secure Hash Standard (SHS),'' 2015.
+
+\bibitem{rfc5869}
+H. Krawczyk and P. Eronen, ``HMAC-based Extract-and-Expand Key Derivation Function (HKDF),'' RFC 5869, 2010.
+
+\bibitem{hennessy-patterson}
+J. L. Hennessy and D. A. Patterson, \emph{Computer Architecture: A Quantitative Approach}. Morgan Kaufmann.
+
+\bibitem{patterson-hennessy}
+D. A. Patterson and J. L. Hennessy, \emph{Computer Organization and Design: The Hardware/Software Interface}. Morgan Kaufmann.
+
+\bibitem{tomasulo}
+R. M. Tomasulo, ``An Efficient Algorithm for Exploiting Multiple Arithmetic Units,'' IBM Journal of Research and Development, 1967.
+
+\bibitem{amdahl}
+G. M. Amdahl, ``Validity of the Single Processor Approach to Achieving Large Scale Computing Capabilities,'' AFIPS, 1967.
+
+\end{thebibliography}
+
 \end{document}
-
-
-

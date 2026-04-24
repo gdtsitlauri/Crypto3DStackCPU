@@ -1,0 +1,24 @@
+project: Crypto3DStackCPU
+hardware_path: real_3d_stacked_memory
+status: pre_fabrication_readiness_package
+
+current_artifacts:
+  rtl_behavioral_model: true
+  tsv_interface_model: true
+  stack_config: true
+  layer_map: true
+  verification_testbench: true
+  fabrication_checklists: true
+
+not_available_without_pdk:
+  sram_macros: false
+  tsv_cells: false
+  lef_def: false
+  liberty: false
+  drc_lvs_decks: false
+  gdsii: false
+  silicon: false
+
+safe_claim:
+  - RTL-level multi-layer 3D stacked-memory model prepared
+  - real fabricated hardware remains future work
