@@ -5,11 +5,14 @@ param(
     [string]$TextFile = "text.hex",
     [string]$DataFile = "data.hex",
     [string]$ResealedImageFile = "demo_after.hex",
-    [string]$PipelineScript = ".\run_pipeline.ps1",
+    [string]$PipelineScript = ".\scripts\windows\run_pipeline.ps1",
     [string]$Cxx = "g++",
     [switch]$SkipPipeline,
     [switch]$KeepTamperFiles
 )
+
+# Run from the repository root regardless of where the script is started.
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

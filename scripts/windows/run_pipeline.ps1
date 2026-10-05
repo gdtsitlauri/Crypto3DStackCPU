@@ -13,6 +13,9 @@ param(
     [string]$Cxx = "g++"
 )
 
+# Run from the repository root regardless of where the script is started.
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 

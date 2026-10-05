@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "Crypto3DStackCPU: a cryptographic CPU with a Vertical Trust Fabric for 3D-stacked memory"
+type: software
+authors:
+  - given-names: "George David"
+    family-names: "Tsitlauri"
+    affiliation: "Department of Informatics and Telecommunications, University of Thessaly"
+date-released: 2026-10-05
+license: MIT
+repository-code: "https://github.com/gdtsitlauri/Crypto3DStackCPU"
+abstract: >-
+  A pipelined cryptographic CPU running encrypted, authenticated programs on a 4-tier 3D-stacked memory
+  model. Every inter-tier transfer is authenticated by an AES-CMAC Vertical Trust Fabric with per-epoch,
+  per-role keys, anti-replay and a formally verified trust guard. Memory encryption with an integrity tree,
+  first-order masking, fault-injection hardening and a PUF-derived root key are implemented in RTL and
+  validated in simulation.
+keywords: [hardware security, 3D-stacked memory, secure processor, formal verification, fault injection, side channels, PUF, FPGA]

@@ -122,3 +122,5 @@ __pycache__/
 build-host/
 # keep the fault-injection campaign logs (primary evidence, ~30 min to regenerate)
 !results/hardware_eval/fault_campaign/*.log
+# MSVC/zig debug databases from the PowerShell regression
+*.pdb

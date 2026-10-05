@@ -91,7 +91,7 @@ They are not FPGA or silicon measurements. Full tables: `docs/PHASE2_RESULTS_202
 
 ```
 Crypto3DStackCPU/
-  README.md, LICENSE (MIT), FUTURE_WORK_ROADMAP.md (status + what remains)
+  README.md, README_GR.md, LICENSE (MIT), CITATION.cff, FUTURE_WORK_ROADMAP.md (status + what remains)
   SUMMARY_FOR_SUPERVISOR_GR.txt   plain-language summary of the whole study (Greek)
   src/                            C++/HLS CPU, AES/CMAC, VTF and memory-integrity models, tests
   programs/                       assembly programs and their result contracts
@@ -105,7 +105,7 @@ Crypto3DStackCPU/
     constraints/, docs/, fabrication/
   docs/                           threat model, Phase-2 results, formal properties, technical details
   results/hardware_eval/          rtl/, phase2/, fault_campaign/, tvla_sim/, puf_sim/, soc/
-  scripts/                        Linux validation + hardware gate (Vivado/HLS)
+  scripts/                        Linux validation + hardware gate (Vivado/HLS); windows/: PowerShell regression
   3D_hls_component/               Vitis HLS component
 ```
 
@@ -119,7 +119,7 @@ Free tools: OSS CAD Suite (Icarus, Verilator, Yosys + slang, SymbiYosys), CMake 
 
 | result | command | runtime |
 |---|---|---|
-| CPU regression | `./scripts/run_core_validation.sh` (Windows: `.\run_all_tests.ps1`) | minutes |
+| CPU regression | `./scripts/run_core_validation.sh` (Windows: `.\scripts\windows\run_all_tests.ps1`) | minutes |
 | 1, 2 | `bash hardware_3d/scripts/run_rtl_validation.sh` (Windows: `.ps1 -OssCadSuite <path>`) | ~5 min |
 | 3–7 | `bash hardware_3d/scripts/run_phase2_validation.sh [out] [cpu_bin_dir]` | ~10 min |
 | 4, full campaign | `iverilog` + `tb/tb_fault_campaign.sv` with `TRIALS=300`, `MODE=0/1` | ~30 min |
@@ -152,4 +152,5 @@ The draft paper was removed; it will be rewritten after the hardware runs.
 
 ## Citation and license
 
-George David Tsitlauri, University of Thessaly, 2026. MIT License (`LICENSE`).
+George David Tsitlauri, University of Thessaly, 2026. MIT License (`LICENSE`); citation metadata in
+`CITATION.cff`.

@@ -2,6 +2,9 @@ param(
     [string]$Cxx = "g++"
 )
 
+# Run from the repository root regardless of where the script is started.
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -31,7 +34,7 @@ $Benchmarks = @(
 
 foreach ($b in $Benchmarks) {
     Invoke-Checked $b.Name {
-        & ".\run_security_audit.ps1" `
+        & ".\scripts\windows\run_security_audit.ps1" `
             -AsmFile $b.Asm `
             -ImageFile $b.Image `
             -ContractFile $b.Contract `

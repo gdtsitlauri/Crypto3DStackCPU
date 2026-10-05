@@ -2,6 +2,9 @@ param(
     [string]$Cxx = "g++"
 )
 
+# Run from the repository root regardless of where the script is started.
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -39,19 +42,19 @@ Invoke-Checked "Build and run crypto/integrated KATs" {
 }
 
 Invoke-Checked "Run multi-layer 3D memory model test" {
-    & ".\run_multilayer_memory_test.ps1" -Cxx $Cxx
+    & ".\scripts\windows\run_multilayer_memory_test.ps1" -Cxx $Cxx
 }
 
 Invoke-Checked "Run Vertical Trust Fabric and device-root validation" {
-    & ".\run_vtf_validation.ps1" -Cxx $Cxx
+    & ".\scripts\windows\run_vtf_validation.ps1" -Cxx $Cxx
 }
 
 Invoke-Checked "Run assembler negative tests" {
-    & ".\run_assembler_negative_tests.ps1" -Cxx $Cxx
+    & ".\scripts\windows\run_assembler_negative_tests.ps1" -Cxx $Cxx
 }
 
 Invoke-Checked "Run demo security audit" {
-    & ".\run_security_audit.ps1" `
+    & ".\scripts\windows\run_security_audit.ps1" `
         -AsmFile "programs\demo.asm" `
         -ImageFile "demo.hex" `
         -ContractFile "programs\demo.contract" `
@@ -59,7 +62,7 @@ Invoke-Checked "Run demo security audit" {
 }
 
 Invoke-Checked "Run demo_alt security audit" {
-    & ".\run_security_audit.ps1" `
+    & ".\scripts\windows\run_security_audit.ps1" `
         -AsmFile "programs\demo_alt.asm" `
         -ImageFile "demo_alt.hex" `
         -ContractFile "programs\demo_alt.contract" `
@@ -68,7 +71,7 @@ Invoke-Checked "Run demo_alt security audit" {
 
 
 Invoke-Checked "Run pipeline hazard/forwarding audit" {
-    & ".\run_security_audit.ps1" `
+    & ".\scripts\windows\run_security_audit.ps1" `
         -AsmFile "programs\pipeline_hazard.asm" `
         -ImageFile "pipeline_hazard.hex" `
         -ContractFile "programs\pipeline_hazard.contract" `
@@ -77,11 +80,11 @@ Invoke-Checked "Run pipeline hazard/forwarding audit" {
 
 
 Invoke-Checked "Run architecture benchmark suite" {
-    & ".\run_architecture_benchmarks.ps1" -Cxx $Cxx
+    & ".\scripts\windows\run_architecture_benchmarks.ps1" -Cxx $Cxx
 }
 
 Invoke-Checked "Run extended tamper tests on demo" {
-    & ".\run_extended_tamper_tests.ps1" `
+    & ".\scripts\windows\run_extended_tamper_tests.ps1" `
         -AsmFile "programs\demo.asm" `
         -ImageFile "demo.hex" `
         -ContractFile "programs\demo.contract" `

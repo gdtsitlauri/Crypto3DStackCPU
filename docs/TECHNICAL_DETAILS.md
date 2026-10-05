@@ -115,7 +115,7 @@ Correct wording:
 ### Windows / PowerShell
 
 ```powershell
-.\run_all_tests.ps1
+.\scripts\windows\run_all_tests.ps1
 ```
 
 The PowerShell regression now also runs `run_vtf_validation.ps1`.
@@ -175,14 +175,7 @@ Crypto3DStackCPU/
 ├── 3D_hls_component/
 │   ├── 3D_hls_config.cfg
 │   └── vitis-comp.json
-├── run_all_tests.ps1
-├── run_pipeline.ps1
-├── run_security_audit.ps1
-├── run_architecture_benchmarks.ps1
-├── run_assembler_negative_tests.ps1
-├── run_extended_tamper_tests.ps1
-├── run_multilayer_memory_test.ps1
-├── run_vtf_validation.ps1
+├── scripts/windows/            PowerShell regression (run_all_tests.ps1 and its parts)
 ├── CMakeLists.txt
 ├── scripts/
 ├── README.md
@@ -618,7 +611,7 @@ Example counters from representative runs:
 From the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run_all_tests.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\run_all_tests.ps1
 ```
 
 To save a timestamped log into `results/`:
@@ -627,7 +620,7 @@ To save a timestamped log into `results/`:
 New-Item -ItemType Directory -Force .\results | Out-Null
 $ts = Get-Date -Format "yyyyMMdd_HHmmss"
 $log = ".\results\run_all_tests_$ts.log"
-powershell -ExecutionPolicy Bypass -File .\run_all_tests.ps1 *>&1 | Tee-Object -FilePath $log
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\run_all_tests.ps1 *>&1 | Tee-Object -FilePath $log
 ```
 
 Expected final marker:
