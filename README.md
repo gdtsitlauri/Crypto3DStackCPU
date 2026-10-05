@@ -2,7 +2,9 @@
 
 **Crypto3DStackCPU** is a validated cryptographic CPU research prototype with an integrated **4-layer 3D-stacked-memory abstraction**, encrypted/authenticated sealed program images, executable AES ISA extensions, pipeline hazard handling, forwarding, basic branch prediction/recovery, architectural performance counters, and authenticated tamper rejection.
 
-The repository is organized as a software/HLS-ready research prototype. It does **not** claim fabricated 3D silicon, FPGA timing closure, board validation, side-channel security, or production-grade security. Those are explicitly listed as future work.
+The 2026 research extension adds a **Vertical Trust Fabric (VTF)**: AES-CMAC-authenticated logical inter-tier transactions, role-based tier access, replay/epoch protection, route/payload binding, sentinel canaries, thermal/physical-fault response, severe-event key-tier zeroization, a 128-bit simulation device-root interface, an HLS CMAC wrapper, and an RTL policy/replay/thermal guard.
+
+The repository is a software/HLS-ready, hardware-oriented research prototype. It does **not** claim fabricated 3D silicon, FPGA timing closure, board validation, side-channel security, PDK signoff, or production-grade device-root provisioning. Those require real hardware/EDA evidence.
 
 ---
 
@@ -14,11 +16,42 @@ The repository is organized as a software/HLS-ready research prototype. It does 
 | Author | George David Tsitlauri |
 | Affiliation | Department of Informatics & Telecommunications, University of Thessaly, Greece |
 | Year | 2026 |
-| Main language | C++17, PowerShell, MIPS-like assembly, SystemVerilog RTL stubs |
+| Main language | C++17, PowerShell, MIPS-like assembly, SystemVerilog RTL models/guards |
 | Target direction | Vitis HLS / Vivado / Artix-7 AC701 (xc7a200tfbg676-2) validation |
-| Current status | Software/HLS-ready prototype; full regression passed after folder reorganization |
+| Current status | Software/HLS-ready secure CPU + validated C++ Vertical Trust Fabric; RTL VTF integration prepared; FPGA/PDK validation pending |
 
 ---
+
+## 2026 Vertical Trust Fabric Extension
+
+The VTF turns the four-tier stack from a passive organization scheme into an explicit security boundary. A vertical request authenticates the requester, operation, tier, address, payload, sequence number, and security epoch with AES-CMAC-128. The receiver then applies role-based authorization and replay checks before memory access.
+
+Default tier roles are:
+
+| Tier | Role | Main authorized requester |
+|---:|---|---|
+| 0 | Instruction / execution | `CPU_FETCH`, `SECURITY` |
+| 1 | Data | `CPU_DATA`, `DMA`, `SECURITY` |
+| 2 | Key / metadata | `SECURITY` only |
+| 3 | Sentinel | `SECURITY` only |
+
+Severe events (bad authentication tag, replay, epoch mismatch, modeled physical fault, over-temperature, or sentinel corruption) latch VTF lockdown and zeroize/disable the key/metadata tier in the C++ model. Ordinary policy denials are rejected without destructive reset.
+
+Important files:
+
+```text
+src/aes_cmac.h                       NIST SP 800-38B AES-CMAC
+src/vertical_trust_fabric.h           VTF software/HLS security model
+src/vtf_hls.cpp                       HLS-facing CMAC tag/verify wrapper
+src/vertical_trust_fabric_test.cpp    VTF attack/policy regression
+src/root_provisioning_test.cpp        128-bit root provisioning regression
+hardware_3d/rtl/vertical_trust_guard.sv
+hardware_3d/rtl/tier_sentinel_monitor.sv
+hardware_3d/rtl/crypto3d_secure_stack_top.sv
+hardware_3d/docs/VERTICAL_TRUST_FABRIC.md
+```
+
+The C++ VTF validation covers a NIST CMAC known-answer test, authorized instruction/data access, denied key-tier access, layer spoofing, payload bit flip, replay, thermal trip, sentinel corruption, and severe-event key-tier zeroization.
 
 ## Current Claim, Non-Claims, and Scope
 
@@ -28,6 +61,10 @@ Crypto3DStackCPU currently provides:
 
 - a MIPS-like in-order cryptographic CPU model;
 - an integrated 4-layer 3D-stacked-memory abstraction;
+- a validated C++ Vertical Trust Fabric model with AES-CMAC authenticated logical tier transactions;
+- per-tier role-based authorization plus replay/epoch checks and route/payload binding;
+- sentinel, thermal, physical-fault, and severe-event key-tier-zeroization models;
+- an HLS-facing AES-CMAC wrapper and RTL VTF policy/replay/thermal guard;
 - encrypted-at-rest instruction and data regions;
 - authenticated sealed images with header validation and tamper rejection;
 - executable `aesenc` and `aesdec` ISA extensions;
@@ -50,9 +87,29 @@ Do **not** claim:
 
 Correct wording:
 
-> Crypto3DStackCPU is a validated software/HLS-ready cryptographic CPU prototype with an integrated 4-layer 3D-stacked-memory abstraction and an RTL-level 3D memory/TSV hardware-readiness package.
+> Crypto3DStackCPU is a validated software/HLS-ready cryptographic CPU prototype with a four-tier 3D-memory abstraction and a software-validated Vertical Trust Fabric for authenticated, replay-protected, role-authorized logical inter-tier transactions. An RTL/HLS integration path is included; FPGA and physical 3D-IC validation remain future work.
 
 ---
+
+## Cross-Platform Reproducibility
+
+### Linux/macOS-style validation (GNU/Clang toolchain)
+
+```bash
+./scripts/run_core_validation.sh
+./scripts/run_demo_pipeline.sh
+./scripts/run_linux_security_audit.sh
+```
+
+`run_core_validation.sh` uses CMake/CTest and runs the AES KAT, multi-layer memory test, 128-bit root provisioning test, and VTF validation. `run_demo_pipeline.sh` executes the complete demo assemble/seal/decrypt-check/CPU/reseal/reload path. `run_linux_security_audit.sh` verifies rejection of encrypted-text, wrapped-key, and image-tag tampering.
+
+### Windows / PowerShell
+
+```powershell
+.\run_all_tests.ps1
+```
+
+The PowerShell regression now also runs `run_vtf_validation.ps1`.
 
 ## Repository Structure
 
@@ -69,6 +126,12 @@ Crypto3DStackCPU/
 │   ├── decryptor.cpp
 │   ├── crypto_kat_test.cpp
 │   ├── multilayer_memory_test.cpp
+│   ├── aes_cmac.h
+│   ├── vertical_trust_fabric.h
+│   ├── vertical_trust_fabric_test.cpp
+│   ├── root_provisioning_test.cpp
+│   ├── vtf_hls.h / vtf_hls.cpp
+│   ├── vtf_benchmark.cpp
 │   └── header.h
 ├── programs/
 │   ├── demo.asm
@@ -85,18 +148,18 @@ Crypto3DStackCPU/
 │   └── aes_stress.contract
 ├── docs/
 │   ├── ARCHITECTURE_COVERAGE.md
-│   └── SECURITY_VALIDATION_NOTES.md
+│   ├── SECURITY_VALIDATION_NOTES.md
+│   ├── RESEARCH_STATUS_2026.md
+│   └── THREAT_MODEL_2026.md
 ├── results/
 │   └── README.md
-├── paper/
-│   └── crypto3dstackcpu_paper.tex
 ├── hardware_3d/
 │   ├── rtl/
 │   ├── tb/
 │   ├── constraints/
 │   ├── docs/
 │   ├── fabrication/
-│   ├── paper_appendix/
+│   ├── formal/
 │   ├── scripts/
 │   ├── stack_config.json
 │   └── tsv_layer_map.csv
@@ -110,6 +173,9 @@ Crypto3DStackCPU/
 ├── run_assembler_negative_tests.ps1
 ├── run_extended_tamper_tests.ps1
 ├── run_multilayer_memory_test.ps1
+├── run_vtf_validation.ps1
+├── CMakeLists.txt
+├── scripts/
 ├── README.md
 ├── LICENSE
 └── .gitignore
@@ -655,7 +721,6 @@ Do not remove:
 src/
 programs/
 docs/
-paper/
 results/
 hardware_3d/
 3D_hls_component/

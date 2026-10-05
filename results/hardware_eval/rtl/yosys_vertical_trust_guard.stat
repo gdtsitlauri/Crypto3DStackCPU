@@ -1,0 +1,42 @@
+
+4. Printing statistics.
+
+=== vertical_trust_guard ===
+
+        +----------Local Count, excluding submodules.
+        | 
+      364 wires
+      961 wire bits
+       33 public wires
+      466 public wire bits
+       21 ports
+      206 port bits
+      367 cells
+      367   $lut
+      269 submodules
+       12   CARRY4
+      257   FDRE
+
+=== design hierarchy ===
+
+        +----------Count including submodules.
+        | 
+      367 vertical_trust_guard
+
+        +----------Count including submodules.
+        | 
+      364 wires
+      961 wire bits
+       33 public wires
+      466 public wire bits
+       21 ports
+      206 port bits
+        - memories
+        - memory bits
+        - processes
+      367 cells
+      367   $lut
+      269 submodules
+       12   CARRY4
+      257   FDRE
+

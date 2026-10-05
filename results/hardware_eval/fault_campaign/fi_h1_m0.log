@@ -1,0 +1,37 @@
+FI_HEADER,hardened,scenario,group,bit,cycle,outcome
+GOLDEN,1,forged,status=0,alarm=1,cycles=55
+GOLDEN,1,replay,status=0,alarm=1,cycles=55
+GOLDEN,1,read,status=1,alarm=0,cycles=82
+GOLDEN,1,write,status=1,alarm=0,cycles=82
+FISUM_HEADER,hardened,mode,scenario,group,trials,masked,detected,hang,violation,false_ack
+FISUM,1,0,forged,control,300,300,0,0,0,0
+FISUM,1,0,forged,authdec,300,300,0,0,0,0
+FISUM,1,0,forged,reqfields,300,300,0,0,0,0
+FISUM,1,0,forged,cmac,300,300,0,0,0,0
+FISUM,1,0,forged,guard,300,300,0,0,0,0
+FISUM,1,0,forged,response,300,300,0,0,0,0
+FISUM,1,0,forged,keys,300,300,0,0,0,0
+FISUM,1,0,replay,control,300,300,0,0,0,0
+FISUM,1,0,replay,authdec,300,300,0,0,0,0
+FISUM,1,0,replay,reqfields,300,300,0,0,0,0
+FISUM,1,0,replay,cmac,300,300,0,0,0,0
+FISUM,1,0,replay,guard,300,300,0,0,0,0
+FISUM,1,0,replay,response,300,300,0,0,0,0
+FISUM,1,0,replay,keys,300,300,0,0,0,0
+FISUM,1,0,read,control,300,2,298,0,0,0
+FISUM,1,0,read,authdec,300,295,5,0,0,0
+FISUM,1,0,read,reqfields,300,76,224,0,0,0
+FISUM,1,0,read,cmac,300,99,201,0,0,0
+FISUM,1,0,read,guard,300,3,297,0,0,0
+FISUM,1,0,read,response,300,216,84,0,0,0
+FISUM,1,0,read,keys,300,262,38,0,0,0
+FISUM,1,0,write,control,300,7,293,0,0,0
+FISUM,1,0,write,authdec,300,295,5,0,0,0
+FISUM,1,0,write,reqfields,300,72,228,0,0,0
+FISUM,1,0,write,cmac,300,100,200,0,0,0
+FISUM,1,0,write,guard,300,3,297,0,0,0
+FISUM,1,0,write,response,300,217,83,0,0,0
+FISUM,1,0,write,keys,300,267,33,0,0,0
+FITOTAL,1,mode=0,nonmasked=2286,detected_or_failsafe=2286,violations=0,false_acks=0
+[FI CAMPAIGN DONE] hardened=1
+tb/tb_fault_campaign.sv:404: $finish called at 25385960000 (1ps)

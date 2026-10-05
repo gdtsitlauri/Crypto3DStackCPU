@@ -1,0 +1,7 @@
+iterations=100000
+baseline_read_ns=1.36
+vtf_authenticated_read_ns=4616.93
+host_overhead_ratio=3405.07
+accepted=100000
+sink=0
+NOTE=Host software microbenchmark only; not FPGA/ASIC latency.

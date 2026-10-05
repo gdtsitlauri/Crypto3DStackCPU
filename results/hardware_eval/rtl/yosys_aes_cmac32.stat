@@ -1,0 +1,42 @@
+
+4. Printing statistics.
+
+=== aes_cmac32 ===
+
+        +----------Local Count, excluding submodules.
+        | 
+     4734 wires
+     7436 wire bits
+       35 public wires
+     2326 public wire bits
+       11 ports
+      647 port bits
+     5058 cells
+     5058   $lut
+     1332 submodules
+        1   CARRY4
+     1331   FDRE
+
+=== design hierarchy ===
+
+        +----------Count including submodules.
+        | 
+     5058 aes_cmac32
+
+        +----------Count including submodules.
+        | 
+     4734 wires
+     7436 wire bits
+       35 public wires
+     2326 public wire bits
+       11 ports
+      647 port bits
+        - memories
+        - memory bits
+        - processes
+     5058 cells
+     5058   $lut
+     1332 submodules
+        1   CARRY4
+     1331   FDRE
+

@@ -1,0 +1,36 @@
+# Formal verification of the Vertical Trust Guard (roadmap 1.2).
+# Run from this directory:   sby -f vertical_trust_guard.sby
+#   prove    : unbounded proof (abc pdr) of P1-P8, default guard
+#   prove_ft : same proof with FAULT_HARDEN=1 (roadmap 2.3 hardening keeps every property)
+#   cover    : non-vacuity
+#   bmc      : bounded check used by run_mutation_check.py (portable traces)
+[tasks]
+prove
+prove_ft
+cover
+bmc
+
+[options]
+prove: mode prove
+prove_ft: mode prove
+cover: mode cover
+cover: depth 8
+bmc: mode bmc
+bmc: depth 24
+
+[engines]
+prove: abc pdr
+prove_ft: abc pdr
+cover: smtbmc boolector
+bmc: smtbmc boolector
+
+[script]
+plugin -i slang
+~prove_ft: read_slang -D FORMAL --top vertical_trust_guard_props crypto3d_stack_pkg.sv vertical_trust_guard.sv vertical_trust_guard_props.sv
+prove_ft: read_slang -D FORMAL --top vertical_trust_guard_props -G FAULT_HARDEN=1 crypto3d_stack_pkg.sv vertical_trust_guard.sv vertical_trust_guard_props.sv
+prep -top vertical_trust_guard_props
+
+[files]
+../rtl/crypto3d_stack_pkg.sv
+../rtl/vertical_trust_guard.sv
+vertical_trust_guard_props.sv

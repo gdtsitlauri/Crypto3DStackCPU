@@ -65,6 +65,10 @@ module tb_stacked_memory_3d_model;
     end
   endtask
 
+  // ready/denied are one-cycle response pulses, so they are captured in the
+  // response cycle rather than sampled after the bus has returned to idle.
+  logic rsp_denied;
+
   task automatic read_word(input int l, input int a);
     begin
       layer = l[C3D_LAYER_WIDTH-1:0];
@@ -72,6 +76,8 @@ module tb_stacked_memory_3d_model;
       wen = 1'b0;
       ren = 1'b1;
       cycle();
+      rsp_denied = denied;
+      if (!ready) $fatal(1, "Read did not complete in one cycle");
       ren = 1'b0;
       cycle();
     end
@@ -108,7 +114,7 @@ module tb_stacked_memory_3d_model;
 
     layer_access[2] = 1'b0;
     read_word(2, 0);
-    if (!denied) $fatal(1, "Access disable did not deny layer 2");
+    if (!rsp_denied) $fatal(1, "Access disable did not deny layer 2");
 
     layer_access[2] = 1'b1;
     fault_inject = 1'b1;

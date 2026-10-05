@@ -1,67 +1,55 @@
 # Results
 
-This directory stores validation logs, benchmark outputs, and final regression evidence.
+This directory stores validation logs, benchmark outputs, and regression evidence.
 
-## Latest Full Regression Status
+## 2026 Vertical Trust Fabric validation
 
-The final full regression run after the repository was reorganized into `src/`, `programs/`, and `docs/` completed successfully.
+The current package was rebuilt and tested on GNU C++/Linux after the Vertical Trust Fabric (VTF) extension.
 
-Final marker:
-
-```text
-[ALL REGRESSION TESTS PASSED]
-Crypto KATs, multi-layer memory tests, assembler negative tests, demo audits, alt audits,
-pipeline hazard/forwarding audit, architecture benchmark suite, and extended tamper rejection tests all passed.
-```
-
-## Validated Components
+Executed and passed:
 
 | Component | Result |
 |---|---|
 | AES-128 FIPS-197 KAT | PASS |
-| 4-layer 3D memory abstraction | PASS |
-| assembler negative tests | PASS |
-| `programs/demo.asm` secure audit | PASS |
-| `programs/demo_alt.asm` secure audit | PASS |
-| pipeline hazard / forwarding audit | PASS |
-| architecture benchmark suite | PASS |
-| memory stress benchmark | PASS |
-| branch stress benchmark | PASS |
-| AES stress benchmark | PASS |
-| extended tamper rejection | PASS |
+| AES-CMAC NIST SP 800-38B KAT | PASS |
+| 4-layer `StackedMemory3D` regression | PASS |
+| 128-bit device-root provisioning regression | PASS |
+| VTF authenticated request/response path | PASS |
+| VTF tier authorization | PASS |
+| VTF layer-spoof rejection | PASS |
+| VTF payload-bit-flip rejection | PASS |
+| VTF replay rejection | PASS |
+| VTF thermal trip / key-tier zeroization | PASS |
+| VTF sentinel raw-corruption detection | PASS |
+| VTF field-mutation property tests | PASS |
+| Address/UndefinedBehavior sanitizers on CTest suite | PASS |
+| Full demo assemble -> seal -> decrypt-check -> CPU -> reseal -> second execution | PASS |
+| Linux sealed-image tamper audit: encrypted text | REJECTED AS EXPECTED |
+| Linux sealed-image tamper audit: wrapped key | REJECTED AS EXPECTED |
+| Linux sealed-image tamper audit: image tag | REJECTED AS EXPECTED |
 
-## Representative Counter Summary
+Relevant logs/artifacts:
 
-Counters are measured over a fixed 2000-cycle validation window.
+- `demo_pipeline_validation.log`
+- `sanitizer_validation.log`
+- `linux-demo/`
+- `linux-security-audit/`
+- `vtf/host_microbenchmark.txt`
 
-| Program | Retired | Stalls | Load-use | Fwd MEM | Fwd WB | Store fwd | Branch mispred. | AES inst. | Signature |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `demo.asm` | 60 | 1 | 1 | 17 | 10 | 0 | 2 | 2 | `0xAE` |
-| `demo_alt.asm` | 11 | 0 | 0 | 3 | 1 | 0 | 0 | 0 | `0x2A` |
-| `pipeline_hazard.asm` | 14 | 2 | 2 | 5 | 5 | 1 | 0 | 0 | `0x36` |
-| `memory_stress.asm` | 14 | 0 | 0 | 4 | 4 | 1 | 0 | 0 | `0x0A` |
-| `branch_stress.asm` | 7 | 0 | 0 | 4 | 1 | 0 | 2 | 0 | `0x0D` |
-| `aes_stress.asm` | 11 | 0 | 0 | 3 | 3 | 0 | 0 | 4 | `0x0A` |
+## Representative CPU counter summary
 
-## Important CPI Note
+The demo pipeline still reports the validated fixed-window counters:
 
-The reported CPI is:
+| Program | Retired | Stalls | Load-use | Fwd MEM | Fwd WB | Branch mispred. | AES inst. | Signature |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `demo.asm` | 60 | 1 | 1 | 17 | 10 | 2 | 2 | `0xAE` |
 
-```text
-CPI = fixed validation window cycles / retired instructions
-```
+The validation window is 2000 cycles, so the reported CPI is a regression/visibility metric and **not** a post-synthesis FPGA performance number.
 
-The validation window is 2000 cycles. Therefore, CPI values are useful for architectural visibility and regression comparison, but they are not final optimized FPGA/Vivado performance results.
+## VTF host microbenchmark caveat
 
-## Saving Logs
+`vtf/host_microbenchmark.txt` measures the C++ software model on the execution host. It demonstrates that authenticated transactions execute correctly and gives a software-cost reference, but it is **not** an FPGA/ASIC latency or throughput result. Hardware numbers must come from HLS/Vivado/FPGA or ASIC tools.
 
-To save a timestamped full regression log:
+## Original Windows regression
 
-```powershell
-New-Item -ItemType Directory -Force .\results | Out-Null
-$ts = Get-Date -Format "yyyyMMdd_HHmmss"
-$log = ".\results\run_all_tests_$ts.log"
-powershell -ExecutionPolicy Bypass -File .\run_all_tests.ps1 *>&1 | Tee-Object -FilePath $log
-```
-
-Keep the latest successful log in this directory as project evidence.
+The repository retains the original PowerShell regression suite (`run_all_tests.ps1`), now extended with `run_vtf_validation.ps1`. The historical architecture workloads remain in the project, but the current Linux environment does not provide PowerShell, so the newly generated logs in this package are from the cross-platform CMake/Bash flow.

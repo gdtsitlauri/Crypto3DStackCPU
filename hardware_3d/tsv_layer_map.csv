@@ -1,10 +1,17 @@
 tsv_id,signal_group,from_layer,to_layer,width,security_note
-TSV_ADDR_0,address,logic_layer,memory_layers,10,word address
-TSV_LAYER_SEL,layer_select,logic_layer,memory_layers,2,selects one of 4 layers
-TSV_WDATA,write_data,logic_layer,memory_layers,32,encrypted/plain internal bus depending on mode
-TSV_RDATA,read_data,memory_layers,logic_layer,32,must not expose plaintext outside trust boundary
-TSV_CTRL_REN,read_enable,logic_layer,memory_layers,1,access-controlled
-TSV_CTRL_WEN,write_enable,logic_layer,memory_layers,1,access-controlled
+TSV_ADDR_0,address,logic_layer,memory_layers,10,bound into authenticated VTF request
+TSV_LAYER_SEL,layer_select,logic_layer,memory_layers,2,bound into AES-CMAC request; layer spoof changes tag verification
+TSV_WDATA,write_data,logic_layer,memory_layers,32,bound into authenticated write request
+TSV_RDATA,read_data,memory_layers,logic_layer,32,response authenticated in software VTF model
+TSV_CTRL_REN,read_enable,logic_layer,memory_layers,1,operation bound into authentication and RBAC policy
+TSV_CTRL_WEN,write_enable,logic_layer,memory_layers,1,operation bound into authentication and RBAC policy
+TSV_SEQUENCE,anti_replay,logic_layer,security_guard,32,monotonic per requester
+TSV_EPOCH,anti_replay,logic_layer,security_guard,32,binds transaction to active security epoch
+TSV_AUTH_OK,auth_result,cmac_authenticator,security_guard,1,RTL guard consumes result from HLS/external AES-CMAC block
 TSV_READY,ready,memory_layers,logic_layer,1,transaction done
-TSV_TAMPER,tamper_alert,memory_layers,logic_layer,1,latches security lock
-TSV_ECC,integrity_ecc,memory_layers,logic_layer,7,future ECC/syndrome channel
+TSV_DENIED,policy_status,security_guard,logic_layer,1,request rejected
+TSV_TAMPER,tamper_alert,security_guard,logic_layer,1,latches severe security event
+TSV_ZEROIZE,key_zeroize,security_guard,key_tier,1,requests key/metadata tier zeroization on severe event
+TSV_TEMP,thermal_sensors,memory_layers,security_guard,17_per_layer,modeled milli-Celsius sensor input
+TSV_SENTINEL,sentinel_alert,sentinel_tier,security_guard,1,sentinel corruption event
+TSV_ECC,integrity_ecc,memory_layers,logic_layer,7,future ECC/syndrome channel; not yet implemented

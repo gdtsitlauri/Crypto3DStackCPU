@@ -8,7 +8,6 @@ This document records how the final organized Crypto3DStackCPU repository covers
 src/        C++ CPU, tools, tests, headers
 programs/   ASM programs and contracts
 docs/       architecture and security notes
-paper/      IEEE-style paper
 results/    validation logs and summaries
 hardware_3d/ RTL/TSV/fabrication-readiness package
 ```
@@ -28,7 +27,7 @@ The final regression was rerun after this reorganization and passed.
 | Cryptography | AES-128 KAT, AES ISA instructions, image sealing, key/image tags |
 | Evaluation | fixed-window counters, CPI, stalls, forwarding, branch, cache, AES counters |
 | Benchmarks | demo, demo_alt, pipeline_hazard, memory_stress, branch_stress, aes_stress |
-| 3D memory | 4-layer abstraction, TSV model, layer map, hardware-readiness package |
+| 3D memory | 4-layer abstraction, Vertical Trust Fabric, authenticated logical tier transactions, TSV model, layer map, hardware-readiness package |
 
 ## Course Mapping
 
@@ -53,6 +52,12 @@ The project does not implement:
 - real fabricated 3D stacked-memory silicon.
 
 These are intentionally left as future work because the current objective is a deterministic, verifiable, secure in-order cryptographic CPU.
+
+## 2026 Vertical Trust Fabric Evidence
+
+The VTF extension adds a 3D-specific security path on top of the original CPU regression. The GNU/CMake validation includes AES-CMAC KATs, per-tier authorization, request/response authentication, replay rejection, layer-spoof detection, payload-bit-flip detection, key-tier zeroization, thermal trip, and sentinel corruption tests. The full Linux demo pipeline also passes after the device-root model was upgraded to a 128-bit provisioning interface.
+
+The RTL VTF guard is included for simulation/synthesis integration, but HDL simulation and FPGA synthesis were not available in the current execution environment; those remain the next hardware validation gate.
 
 ## Final Regression Evidence
 

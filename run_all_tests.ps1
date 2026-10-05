@@ -42,6 +42,10 @@ Invoke-Checked "Run multi-layer 3D memory model test" {
     & ".\run_multilayer_memory_test.ps1" -Cxx $Cxx
 }
 
+Invoke-Checked "Run Vertical Trust Fabric and device-root validation" {
+    & ".\run_vtf_validation.ps1" -Cxx $Cxx
+}
+
 Invoke-Checked "Run assembler negative tests" {
     & ".\run_assembler_negative_tests.ps1" -Cxx $Cxx
 }
@@ -87,7 +91,7 @@ Invoke-Checked "Run extended tamper tests on demo" {
 Write-Host ""
 Write-Host "============================================================"
 Write-Host "[ALL REGRESSION TESTS PASSED]"
-Write-Host "Crypto KATs, multi-layer memory tests, assembler negative tests, demo audits, alt audits,"
+Write-Host "Crypto KATs, multi-layer memory tests, VTF/root tests, assembler negative tests, demo audits, alt audits,"
 Write-Host "pipeline hazard/forwarding audit, architecture benchmark suite, and extended tamper rejection tests all passed."
 Write-Host "============================================================"
 

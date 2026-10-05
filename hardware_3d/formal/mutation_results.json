@@ -1,0 +1,72 @@
+{
+  "baseline": "PASS",
+  "mutants": 13,
+  "killed": 13,
+  "results": [
+    {
+      "mutant": "auth_check_removed",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "epoch_check_removed",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "replay_window_accepts_any_newer",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "lockdown_not_sticky",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "zeroize_disconnected",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "dma_reaches_key_tier",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "dma_reaches_exec_tier",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "debug_unlock_ignored",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "fetch_may_write",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "sentinel_fault_ignored",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "thermal_alarm_inverted",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "policy_deny_desyncs_sequence",
+      "proof": "FAIL",
+      "killed": true
+    },
+    {
+      "mutant": "auth_fail_not_severe",
+      "proof": "FAIL",
+      "killed": true
+    }
+  ]
+}

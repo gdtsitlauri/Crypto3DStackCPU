@@ -1,0 +1,44 @@
+
+4. Printing statistics.
+
+=== crypto3d_secure_stack_top ===
+
+        +----------Local Count, excluding submodules.
+        | 
+      471 wires
+     2276 wire bits
+       81 public wires
+      983 public wire bits
+       27 ports
+      317 port bits
+      473 cells
+      469   $lut
+        4   RAMB36E1
+      305 submodules
+       12   CARRY4
+      293   FDRE
+
+=== design hierarchy ===
+
+        +----------Count including submodules.
+        | 
+      473 crypto3d_secure_stack_top
+
+        +----------Count including submodules.
+        | 
+      471 wires
+     2276 wire bits
+       81 public wires
+      983 public wire bits
+       27 ports
+      317 port bits
+        - memories
+        - memory bits
+        - processes
+      473 cells
+      469   $lut
+        4   RAMB36E1
+      305 submodules
+       12   CARRY4
+      293   FDRE
+

@@ -9,6 +9,7 @@
 
 #if !defined(__SYNTHESIS__)
 #include <cstdio>
+#include <cstdlib>
 #endif
 
 #include "3d.h"
@@ -30,6 +31,27 @@
 #define CRYPTO3D_STRICT_TEXT_WRITE_PROTECT 1
 #endif
 
+// Vertical-transaction trace (roadmap 2.6, simulation only): when the
+// environment variable C3D_VTF_TRACE names a file, every access that crosses
+// tiers is logged: "F layer addr" (I-cache line fill, per word),
+// "R layer addr" (D-cache miss), "W layer addr value" (write-through store).
+// hardware_3d/scripts/vtf_trace_overhead.py and tb/tb_vtf_soc.sv replay it.
+#if !defined(__SYNTHESIS__)
+static FILE* vtf_trace_file() {
+    static FILE* f = nullptr;
+    static bool init = false;
+    if (!init) {
+        init = true;
+        const char* path = std::getenv("C3D_VTF_TRACE");
+        if (path && *path) f = std::fopen(path, "w");
+    }
+    return f;
+}
+#define VTF_TRACE(...) do { if (FILE* vtf_f_ = vtf_trace_file()) std::fprintf(vtf_f_, __VA_ARGS__); } while (0)
+#else
+#define VTF_TRACE(...) do { } while (0)
+#endif
+
 
 // ------------------------------------------------------------------------
 // Global Parameters / Definitions
@@ -48,7 +70,6 @@ static constexpr uint32_t kTextStartAddr  = kTextStartBlock * INSTRS_PER_BLOCK;
 static constexpr uint32_t kMarsTextBaseWord = 0x00100000u; // 0x00400000 / 4
 static constexpr uint32_t kMarsDataBaseByte = 0x10010000u;
 
-static inline void invalidateICacheWordAddr(uint32_t word_addr); // forward declaration
 static inline void invalidateFrontendOnTextWrite(uint32_t word_addr); // forward declaration
 static uint32_t secure_map_text_block_runtime(uint32_t logical_block_addr); // forward declaration
 
@@ -186,15 +207,6 @@ static uint32_t iCache_data[ICACHE_LINES][INSTRS_PER_BLOCK];
 static uint32_t iCache_tag[ICACHE_LINES];
 static bool     iCache_valid[ICACHE_LINES];
 
-static inline void invalidateICacheWordAddr(uint32_t word_addr) {
-    uint32_t block_addr = word_addr / INSTRS_PER_BLOCK;
-    uint32_t index = block_addr % ICACHE_LINES;
-    uint32_t tag   = block_addr / ICACHE_LINES;
-    if (iCache_valid[index] && iCache_tag[index] == tag) {
-        iCache_valid[index] = false;
-    }
-}
-
 static void icache_get_index_tag(uint32_t block_addr, uint32_t &index, uint32_t &tag) {
 #pragma HLS INLINE
     index = block_addr % ICACHE_LINES;
@@ -212,6 +224,7 @@ static void icache_fetch_block_from_mem(uint32_t block_addr, uint32_t out_block[
     }
     uint32_t base = phys_block_addr * INSTRS_PER_BLOCK;
     for (int i = 0; i < INSTRS_PER_BLOCK; i++) {
+        VTF_TRACE("F %u %u\n", (unsigned)instr_layer, (unsigned)(base + i));
         out_block[i] = stackedMemory.rawRead(instr_layer, base + i);
     }
 }
@@ -260,6 +273,7 @@ static uint32_t dcache_read(uint32_t addr) {
     dcache_get_index_tag(addr, index, tag);
     if (!dcache_valid[index] || dcache_tag[index] != tag) {
         perf_dcache_misses++;
+        VTF_TRACE("R %u %u\n", (unsigned)data_layer, (unsigned)addr);
         dcache_data[index]  = stackedMemory.protectedRead(data_layer, addr);
         dcache_tag[index]   = tag;
         dcache_valid[index] = true;
@@ -276,6 +290,7 @@ static void dcache_write(uint32_t addr, uint32_t value) {
     dcache_data[index]  = value;
     dcache_tag[index]   = tag;
     dcache_valid[index] = true;
+    VTF_TRACE("W %u %u %08x\n", (unsigned)data_layer, (unsigned)addr, (unsigned)value);
     stackedMemory.protectedWrite(data_layer, addr, value);
 }
 
@@ -2283,6 +2298,7 @@ static uint32_t secure_read_encrypted_data_word(uint32_t word_addr) {
     }
 
     for (int i = 0; i < INSTRS_PER_BLOCK; ++i) {
+        VTF_TRACE("R %u %u\n", (unsigned)data_layer, (unsigned)(base + (uint32_t)i));
         cipher[i] = stackedMemory.rawRead(data_layer, base + (uint32_t)i);
     }
 
@@ -2305,6 +2321,7 @@ static void secure_write_encrypted_data_word(uint32_t word_addr, uint32_t value)
     }
 
     for (int i = 0; i < INSTRS_PER_BLOCK; ++i) {
+        VTF_TRACE("R %u %u\n", (unsigned)data_layer, (unsigned)(base + (uint32_t)i));
         cipher[i] = stackedMemory.rawRead(data_layer, base + (uint32_t)i);
     }
 
@@ -2314,6 +2331,7 @@ static void secure_write_encrypted_data_word(uint32_t word_addr, uint32_t value)
 
     for (int i = 0; i < INSTRS_PER_BLOCK; ++i) {
         uint32_t addr = base + (uint32_t)i;
+        VTF_TRACE("W %u %u %08x\n", (unsigned)data_layer, (unsigned)addr, (unsigned)recipher[i]);
         stackedMemory.protectedWrite(data_layer, addr, recipher[i]);
 
         uint32_t index = 0, tag = 0;

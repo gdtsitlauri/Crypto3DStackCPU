@@ -2,64 +2,52 @@
 
 ## Purpose
 
-The 3D stacked memory is the secure storage substrate for Crypto3DStackCPU. It stores:
-- secure header
-- encrypted instruction blocks
-- encrypted data blocks
-- wrapped-key metadata
-- hidden key-binding bits
-- future sentinel/tamper layers
+The four-tier stack is the secure storage substrate for Crypto3DStackCPU and the protected endpoint of the Vertical Trust Fabric (VTF). It separates execution, data, key/metadata, and sentinel state so the security policy can reason about vertical destinations explicitly.
 
-## Proposed Physical Stack
+## Logical stack
 
-| Layer | Role | Description |
+| Tier | Role | VTF policy |
 |---:|---|---|
-| 0 | Execution layer | Validated CPU execution image layer |
-| 1 | Data/cache layer | Future encrypted data expansion |
-| 2 | Key-hiding layer | Future separated hidden-key-bit placement |
-| 3 | Sentinel layer | Future redundancy/tamper detection layer |
+| 0 | Instruction / execution | CPU fetch read + security provisioning |
+| 1 | Data | CPU data and DMA read/write + security provisioning |
+| 2 | Key / metadata | security-only; zeroized/disabled on severe event |
+| 3 | Sentinel | security-only; stores canaries / future sensor metadata |
 
-## Logical Interface
+The legacy sealed-image CPU regression still boots a complete image from layer 0 for compatibility. The VTF research path exercises the explicit four-role split. A future CPU integration can migrate instruction/data/key/sentinel traffic onto their dedicated physical tiers without changing the VTF transaction format.
 
-Each transaction contains:
+## VTF transaction fields
 
-| Field | Width | Meaning |
-|---|---:|---|
-| `layer` | 2 bits | selects one of four layers |
-| `addr` | 10 bits | selects one of 1024 words |
-| `wdata` | 32 bits | write data |
-| `rdata` | 32 bits | read data |
-| `ren` | 1 bit | read enable |
-| `wen` | 1 bit | write enable |
-| `ready` | 1 bit | transaction done |
-| `denied` | 1 bit | access blocked |
-| `tamper` | 1 bit | tamper/fault alert |
+A protected vertical request binds:
 
-## Security Policy
+| Field | Meaning |
+|---|---|
+| requester | CPU fetch, CPU data, security, DMA, debug |
+| operation | read/write |
+| layer | destination tier |
+| address | word address |
+| payload | write data |
+| sequence | anti-replay counter |
+| epoch | security/reseal epoch |
+| route nonce | deterministic route-domain value |
+| AES-CMAC tag | authenticates the request tuple |
 
-The model supports:
-- per-layer access control
-- out-of-range tamper latching
-- fault injection for verification
-- future ECC/syndrome channels
-- separation of execution/data/key/sentinel roles
+## Hardware partition
 
-## Physical Implementation Notes
+- `src/vtf_hls.cpp`: HLS-facing AES-CMAC tag/verify function.
+- `hardware_3d/rtl/vertical_trust_guard.sv`: RBAC, replay, epoch, thermal/fault lockdown, zeroize output.
+- `hardware_3d/rtl/tier_sentinel_monitor.sv`: provisioned sentinel comparison.
+- `hardware_3d/rtl/crypto3d_secure_stack_top.sv`: integration-oriented guard + memory model top.
+- `hardware_3d/rtl/stacked_memory_3d_model.sv`: BRAM-inferable behavioral stack model.
 
-A real 3D IC implementation must replace behavioral arrays with:
-- SRAM macros per layer
-- TSV standard cells or process-specific vertical interconnect
-- layer-aware floorplan
-- inter-layer timing constraints
-- thermal constraints
-- DRC/LVS/STA/IR/EM signoff
+## Physical implementation requirements
 
-## Integration with Existing CPU
+A real 3D IC implementation must replace behavioral structures with target technology components:
 
-The existing CPU may keep using layer 0 for validated execution.
-
-Future policies may split:
-- instruction fetch from layer 0
-- secure data from layer 1
-- hidden key bits from layer 2
-- sentinel/tamper metadata from layer 3
+- SRAM/HBM or other memory macros per tier;
+- PDK-specific TSV/hybrid-bond structures;
+- layer-aware floorplanning and routing;
+- inter-tier STA;
+- IR/EM and thermal signoff;
+- DRC/LVS;
+- calibrated fault/thermal sensors;
+- hardware-root provisioning.

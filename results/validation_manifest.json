@@ -1,0 +1,60 @@
+{
+  "project": "Crypto3DStackCPU",
+  "revision": "Vertical Trust Fabric research extension",
+  "validation_environment": {
+    "os_family": "Linux",
+    "gcc": "14.2.0",
+    "clang": "17.0.0",
+    "cmake": "3.31.6",
+    "systemverilog_simulator_available": false,
+    "vivado_available": false,
+    "vitis_hls_available": false
+  },
+  "executed_validation": {
+    "gcc_ctest": {
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "clang_ctest": {
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "asan_ubsan_ctest": {
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "demo_secure_pipeline": "PASS",
+    "demo_signature": "0x000000AE",
+    "demo_retired_instructions": 60,
+    "sealed_image_tamper_tests": {
+      "encrypted_text_bitflip": "REJECTED_AS_EXPECTED",
+      "wrapped_key_bitflip": "REJECTED_AS_EXPECTED",
+      "image_tag_bitflip": "REJECTED_AS_EXPECTED"
+    },
+    "vtf_security_cases": {
+      "aes_cmac_nist_kat": "PASS",
+      "authorized_instruction_access": "PASS",
+      "authorized_data_access": "PASS",
+      "key_tier_policy_denial": "PASS",
+      "layer_spoof_rejection": "PASS",
+      "payload_bitflip_rejection": "PASS",
+      "replay_rejection": "PASS",
+      "thermal_trip": "PASS",
+      "key_tier_zeroization": "PASS",
+      "sentinel_corruption_detection": "PASS",
+      "field_mutation_property_suite": "PASS"
+    }
+  },
+  "not_executed_here": [
+    "SystemVerilog compilation/simulation",
+    "Vitis HLS synthesis",
+    "Vivado synthesis/place-and-route/timing closure",
+    "FPGA board validation",
+    "ASIC/PDK/TSV physical design",
+    "power/EM side-channel measurements",
+    "hardware voltage/clock/laser fault injection"
+  ]
+}

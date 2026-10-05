@@ -1,0 +1,68 @@
+{
+  "model": "RO-PUF, disjoint pairs, sigma_p=1%, sigma_n=0.12%, tc_sigma=2e-5/C",
+  "devices": 40,
+  "reads_per_condition": 50,
+  "per_rep": {
+    "1": {
+      "puf_bits": 128,
+      "key_failure_rate": {
+        "-20.0": 1.0,
+        "25.0": 1.0,
+        "85.0": 1.0
+      },
+      "residual_entropy_bits_iid_model": 128
+    },
+    "3": {
+      "puf_bits": 384,
+      "key_failure_rate": {
+        "-20.0": 0.7405,
+        "25.0": 0.6345,
+        "85.0": 0.794
+      },
+      "residual_entropy_bits_iid_model": 128
+    },
+    "5": {
+      "puf_bits": 640,
+      "key_failure_rate": {
+        "-20.0": 0.222,
+        "25.0": 0.1615,
+        "85.0": 0.3075
+      },
+      "residual_entropy_bits_iid_model": 128
+    },
+    "7": {
+      "puf_bits": 896,
+      "key_failure_rate": {
+        "-20.0": 0.0495,
+        "25.0": 0.032,
+        "85.0": 0.081
+      },
+      "residual_entropy_bits_iid_model": 128
+    },
+    "9": {
+      "puf_bits": 1152,
+      "key_failure_rate": {
+        "-20.0": 0.0065,
+        "25.0": 0.007,
+        "85.0": 0.0115
+      },
+      "residual_entropy_bits_iid_model": 128
+    },
+    "11": {
+      "puf_bits": 1408,
+      "key_failure_rate": {
+        "-20.0": 0.0,
+        "25.0": 0.0,
+        "85.0": 0.002
+      },
+      "residual_entropy_bits_iid_model": 128
+    }
+  },
+  "uniqueness_inter_hd": 0.4995028409090909,
+  "bias_ones_fraction": 0.4979758522727273,
+  "reliability_intra_hd": {
+    "-20.0": 0.05911896306818182,
+    "25.0": 0.05256463068181818,
+    "85.0": 0.06545987215909091
+  }
+}

@@ -1,0 +1,7 @@
+program,cpu_pass,cycles,retired,icache_misses,dcache_misses,dcache_hits,icache_hits,trace_fetch,trace_load,trace_store,rtl_pass,fetch_cycles,load_cycles,store_cycles,added_cycles,delta_cpi,ft_rtl_pass,ft_fetch_cycles,ft_load_cycles,ft_store_cycles,ft_added_cycles,ft_delta_cpi
+aes_stress,True,2000,11,4,0,0,992,16,4,4,True,110.0,110.0,110.0,2592.0,235.63636363636363,True,136.0,136.0,136.0,3216.0,292.3636363636364
+branch_stress,True,2000,7,5,0,0,992,20,4,4,True,110.0,110.0,110.0,3024.0,432.0,True,136.0,136.0,136.0,3752.0,536.0
+demo,True,2000,60,21,0,0,956,84,28,12,True,110.0,110.0,110.0,13392.0,223.2,True,136.0,136.0,136.0,16616.0,276.93333333333334
+demo_alt,True,2000,11,4,0,0,992,16,4,4,True,110.0,110.0,110.0,2592.0,235.63636363636363,True,136.0,136.0,136.0,3216.0,292.3636363636364
+memory_stress,True,2000,14,5,0,0,989,20,28,8,True,110.0,110.0,110.0,6048.0,432.0,True,136.0,136.0,136.0,7504.0,536.0
+pipeline_hazard,True,2000,14,5,0,0,988,20,16,8,True,110.0,110.0,110.0,4752.0,339.42857142857144,True,136.0,136.0,136.0,5896.0,421.14285714285717

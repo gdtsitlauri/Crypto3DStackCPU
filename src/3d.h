@@ -57,12 +57,15 @@ private:
     uint32_t tamper_events = 0;
     size_t processing_layer = SIZE_MAX;
 
-    // Simulation-only placeholder for the hardware root key.
-    // On an FPGA target this MUST be replaced by a non-observable hardware
-    // root such as eFuse, PUF-derived key material, battery-backed SRAM, or
-    // another tamper-aware on-chip secret. It must not be readable from AXI,
-    // JTAG, software, or the external image.
-    uint32_t hardware_key = 0xA1B2C3D4u;
+    // Simulation-only 128-bit device root used by the software/HLS model.
+    // A physical target MUST provision this from a non-observable hardware
+    // root (eFuse, PUF-derived material, BBRAM, secure element, etc.). The
+    // model intentionally provides setters for test/provisioning but no getter.
+    // The default value is a public test vector and MUST NOT be treated as a
+    // production secret.
+    uint32_t hardware_root[4] = {
+        0x2B7E1516u, 0x28AED2A6u, 0xABF71588u, 0x09CF4F3Cu
+    };
 
     bool isValidLayer(size_t layer) const {
         return layer < num_layers && layer < MAX_LAYERS;
@@ -116,7 +119,9 @@ private:
     }
 
     uint32_t deriveLayerKeyWord(size_t layer, size_t word) const {
-        uint32_t x = hardware_key;
+        uint32_t x = hardware_root[word & 3u];
+        x ^= mix32(hardware_root[(word + 1u) & 3u] ^ (uint32_t)(layer + 1u));
+        x ^= mix32(hardware_root[(word + 2u) & 3u] ^ (uint32_t)(word + 1u));
         x ^= 0x9E3779B9u * (uint32_t)(layer + 1u);
         x ^= 0x85EBCA6Bu * (uint32_t)(word + 1u);
         x ^= (uint32_t)(layer << 16) ^ (uint32_t)word;
@@ -415,15 +420,31 @@ public:
     // ------------------------------------------------------------------------
     // Hardware Obfuscation / Root Derivation
     // ------------------------------------------------------------------------
-    void setHardwareKey(uint32_t new_key) {
-        hardware_key = new_key;
+    // Preferred simulation/provisioning API: load a full 128-bit root.
+    void setHardwareRootKey(const uint32_t new_root[4]) {
+        if (new_root == nullptr) return;
+        for (int i = 0; i < 4; ++i) hardware_root[i] = new_root[i];
         initLayerKeys();
-        appendLog(layer_log[DEFAULT_LAYER], "[HW KEY UPDATED] ");
+        appendLog(layer_log[DEFAULT_LAYER], "[HW ROOT UPDATED] ");
+    }
+
+    // Backward-compatible seed API. It expands a 32-bit test seed into the
+    // 128-bit simulation root. Do not use this as production provisioning.
+    void setHardwareKey(uint32_t new_key) {
+        uint32_t x = new_key;
+        for (int i = 0; i < 4; ++i) {
+            x = mix32(x ^ (0x9E3779B9u * (uint32_t)(i + 1)));
+            hardware_root[i] = x;
+        }
+        initLayerKeys();
+        appendLog(layer_log[DEFAULT_LAYER], "[HW ROOT SEEDED] ");
     }
 
     uint32_t deriveHardwareWord(uint32_t nonce, uint32_t salt) const {
-        uint32_t x = hardware_key ^ nonce ^ (salt * 0x9E3779B9u);
-        return mix32(x) ^ 0xA5C39D27u;
+        uint32_t x = hardware_root[salt & 3u] ^ nonce ^ (salt * 0x9E3779B9u);
+        x ^= mix32(hardware_root[(salt + 1u) & 3u] ^ 0xA5C39D27u);
+        x ^= mix32(hardware_root[(salt + 2u) & 3u] ^ 0x3C6EF372u);
+        return mix32(x) ^ hardware_root[(salt + 3u) & 3u];
     }
 
     void hardwareObfuscate() {
@@ -431,7 +452,7 @@ public:
             if (layer_is_encrypted[l]) continue;
             if (layer_has_hidden_key[l]) continue;
 
-            uint32_t key = hardware_key ^ (uint32_t)(0x9E3779B9u * (uint32_t)(l + 1u));
+            uint32_t key = deriveHardwareWord((uint32_t)l, 0x70u + (uint32_t)l);
             for (size_t w = 0; w < num_words; ++w) {
                 memory[l][w] ^= key;
             }

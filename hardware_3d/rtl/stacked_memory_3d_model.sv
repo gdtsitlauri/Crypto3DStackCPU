@@ -46,19 +46,48 @@ module stacked_memory_3d_model #(
   // BRAM-inferable 3D memory. Deliberately not reset so Vivado can map
   // this to block RAM primitives on Artix-7.
   (* ram_style = "block" *)
-  logic [WORD_WIDTH-1:0] mem [LAYERS][WORDS];
+  // Flat array indexed by layer*WORDS+addr: a 2-D unpacked array blocks BRAM
+  // inference in some tools (Yosys); this form maps to RAMB36E1 primitives.
+  logic [WORD_WIDTH-1:0] mem [LAYERS*WORDS];
 
   logic tamper_latched;
+  logic in_range;
+  logic [$clog2(LAYERS*WORDS)-1:0] mem_index;
+  logic access_ok;
+
+  // Pure synchronous RAM read register (no reset, no logic between the array
+  // and the register) so the read port maps onto the BRAM output register.
+  // Fault masking is applied after it from registered control state; the
+  // externally visible timing is unchanged (data valid one cycle after ren).
+  // FPGA power-on value of the read register (intentional; not a reset).
+  /* verilator lint_off PROCASSINIT */
+  logic [WORD_WIDTH-1:0] ram_q = '0;
+  /* verilator lint_on PROCASSINIT */
+  logic                  rd_fault_q;
+  logic [WORD_WIDTH-1:0] rd_mask_q;
 
   assign tamper_o = tamper_latched;
+  assign in_range = (int'(layer_i) < LAYERS) && (int'(addr_i) < WORDS);
+  assign access_ok = in_range && layer_access_i[layer_i];
+  assign mem_index = ($clog2(LAYERS*WORDS))'(int'(layer_i) * WORDS + int'(addr_i));
+  assign rdata_o = rd_fault_q ? (ram_q ^ rd_mask_q) : ram_q;
+
+  // BRAM port: read-first, enables only, no reset.
+  always_ff @(posedge clk) begin
+    if (wen_i && access_ok)
+      mem[mem_index] <= fault_inject_i ? (wdata_i ^ fault_mask_i) : wdata_i;
+    if (ren_i && access_ok)
+      ram_q <= mem[mem_index];
+  end
 
   // Control registers use synchronous reset (BRAM-independent).
   always_ff @(posedge clk) begin
     if (!rst_n) begin
-      rdata_o        <= '0;
       ready_o        <= 1'b0;
       denied_o       <= 1'b0;
       tamper_latched <= 1'b0;
+      rd_fault_q     <= 1'b0;
+      rd_mask_q      <= '0;
     end else begin
       ready_o  <= 1'b0;
       denied_o <= 1'b0;
@@ -67,32 +96,23 @@ module stacked_memory_3d_model #(
         tamper_latched <= 1'b0;
       end
 
-      if ((ren_i || wen_i) && ((int'(layer_i) >= LAYERS) ||
-                               (int'(addr_i)  >= WORDS))) begin
+      if ((ren_i || wen_i) && !in_range) begin
         // Out-of-range transaction: latched tamper, denied, no RAM access.
         denied_o       <= 1'b1;
         ready_o        <= 1'b1;
         tamper_latched <= 1'b1;
-      end else if ((ren_i || wen_i) && !layer_access_i[layer_i]) begin
+      end else if ((ren_i || wen_i) && !access_ok) begin
         // Layer-level access control: denied but not a tamper event.
         denied_o <= 1'b1;
         ready_o  <= 1'b1;
-      end else begin
-        if (wen_i) begin
-          mem[layer_i][addr_i] <= fault_inject_i ? (wdata_i ^ fault_mask_i) : wdata_i;
-          ready_o              <= 1'b1;
-          if (fault_inject_i) begin
-            tamper_latched <= 1'b1;
-          end
+      end else if (ren_i || wen_i) begin
+        ready_o <= 1'b1;
+        if (fault_inject_i) begin
+          tamper_latched <= 1'b1;
         end
-
         if (ren_i) begin
-          rdata_o <= fault_inject_i ? (mem[layer_i][addr_i] ^ fault_mask_i)
-                                    :  mem[layer_i][addr_i];
-          ready_o <= 1'b1;
-          if (fault_inject_i) begin
-            tamper_latched <= 1'b1;
-          end
+          rd_fault_q <= fault_inject_i;
+          rd_mask_q  <= fault_mask_i;
         end
       end
     end

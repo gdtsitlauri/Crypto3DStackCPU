@@ -1,32 +1,32 @@
 # Claims and Limitations
 
-## Safe Claims
+## Safe claims
 
-You may claim:
+You may claim that the repository contains:
 
-- software-validated secure CPU execution path;
-- encrypted/authenticated sealed-image flow;
-- contract-based execution proof;
-- authenticated tamper rejection;
-- HLS-ready CPU top function;
-- 4-layer C++/HLS `StackedMemory3D` abstraction;
-- active multi-layer memory regression test;
-- RTL-level 3D stacked-memory / TSV behavioral model;
-- hardware-readiness package for future 3D IC integration.
+- a software-validated secure MIPS-like CPU execution path;
+- encrypted/authenticated sealed-image flow and reseal validation;
+- executable AES ISA extensions;
+- four-tier C++/HLS memory abstraction;
+- a **validated software Vertical Trust Fabric** with AES-CMAC request/response authentication, RBAC, replay/epoch checks, layer/payload binding, sentinel canaries, thermal/fault response, and severe-event key-tier zeroization;
+- an HLS-facing AES-CMAC wrapper;
+- RTL modules for VTF policy/replay/thermal guarding, sentinel monitoring, and secure-stack integration;
+- reproducible GNU C++/CMake validation on Linux plus the original PowerShell flow.
 
-## Unsafe Claims
+## Claims that still require hardware evidence
 
-Do not claim yet:
+Do **not** claim yet:
 
-- fabricated 3D stacked-memory silicon exists;
-- GDSII is complete;
-- foundry signoff is complete;
-- TSV layout is DRC/LVS-clean;
-- silicon has been measured;
-- Artix-7 validates real 3D stacked memory hardware;
-- side-channel security has been proven;
-- reverse engineering is impossible.
+- FPGA-proven VTF timing/performance;
+- Vivado timing closure;
+- physical AC701 measurements;
+- fabricated 3D stacked-memory silicon;
+- PDK/TSV DRC/LVS/STA signoff;
+- measured power/EM/thermal attack resistance;
+- production-grade PUF/eFuse device-root provisioning;
+- side-channel security;
+- peer-reviewed algorithm/architecture novelty.
 
-## Best Paper Wording
+## Recommended wording
 
-> Crypto3DStackCPU provides a validated cryptographic CPU/security stack with a 4-layer C++/HLS 3D-stacked-memory abstraction and a hardware-oriented RTL-level TSV/memory package. Physical 3D IC fabrication and silicon-level validation remain future work.
+> Crypto3DStackCPU is a validated software/HLS-ready secure CPU research prototype with a four-tier 3D memory abstraction. Its 2026 Vertical Trust Fabric extension authenticates and authorizes logical inter-tier transactions, rejects replay and route/payload modification, models sentinel and thermal/fault response, and provides an RTL/HLS integration path. Physical 3D-IC and FPGA validation remain future work.
